@@ -1,0 +1,5 @@
+{
+  "name": "Projeto PO V5",
+  "description": "Uma aplicação com IA para validar histórias de usuário com base nos princípios INVEST e fornecer sugestões de melhoria usando a API Gemini.",
+  "requestFramePermissions": []
+}

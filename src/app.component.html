@@ -1,0 +1,885 @@
+<div class="min-h-screen bg-gray-900 text-gray-200">
+
+  @if (currentView() === 'welcome') {
+    <!-- Welcome Screen -->
+    <div class="flex flex-col items-center justify-center h-screen p-8 text-center">
+        <div class="max-w-3xl">
+            <h1 class="text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300 mb-4">
+                PO Agent AI
+            </h1>
+            <p class="text-xl text-gray-400 mb-12">
+                Sua ferramenta completa para análise, refinamento e gestão de Histórias de Usuário, impulsionada por IA.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Analyze Story Card -->
+                <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-2 shadow-lg">
+                    <div class="text-blue-400 mb-4">
+                        <i class="fas fa-magic fa-3x"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold mb-3 text-gray-100">Analisar História</h2>
+                    <p class="text-gray-400 mb-6">
+                        Insira uma história de usuário para receber uma análise INVEST, critérios de aceite, cenários de teste e um refinamento estratégico completo.
+                    </p>
+                    <button (click)="showAnalyzer()" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center shadow-md">
+                        <i class="fas fa-pencil-alt mr-2"></i>
+                        Começar Análise
+                    </button>
+                </div>
+
+                <!-- Import Backlog Card -->
+                <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-green-500 transition-all duration-300 transform hover:-translate-y-2 shadow-lg">
+                    <div class="text-green-400 mb-4">
+                        <i class="fas fa-file-import fa-3x"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold mb-3 text-gray-100">Importar Documentos</h2>
+                    <p class="text-gray-400 mb-6">
+                        Envie documentos de requisitos, RFPs ou transcrições para a IA extrair e gerar um backlog completo de histórias de usuário refinadas.
+                    </p>
+                    <button (click)="showImporter()" class="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-all duration-300 flex items-center justify-center shadow-md">
+                        <i class="fas fa-cogs mr-2"></i>
+                        Importar e Gerar Backlog
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+  } @else if (currentView() === 'analyzer') {
+    <!-- Analyzer Screen (existing layout) -->
+    <div class="flex flex-col p-4 sm:p-6 lg:p-8">
+      <header class="w-full max-w-screen-2xl mx-auto mb-8 text-center relative">
+        <button (click)="goHome()" class="absolute left-0 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400 hover:text-white transition-colors px-4 py-2 rounded-lg hover:bg-gray-700/50 flex items-center gap-2">
+            <i class="fas fa-arrow-left"></i>
+            <span>Início</span>
+        </button>
+        <h1 class="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">
+          IA Validadora de Histórias de Usuário
+        </h1>
+        <p class="mt-2 text-lg text-gray-400">
+          Refine suas histórias de usuário com análises baseadas nos princípios INVEST e impulsionadas por IA.
+        </p>
+      </header>
+
+      <main class="w-full max-w-screen-2xl mx-auto flex-grow grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Left Column: History & Backlog -->
+        <div class="lg:col-span-3 bg-gray-800 p-6 rounded-2xl shadow-lg flex flex-col border border-gray-700">
+          <div class="flex border-b border-gray-700 mb-4">
+              <button (click)="setActiveSideTab('history')"
+                      class="w-1/2 px-4 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none flex items-center justify-center space-x-2"
+                      [class]="activeSideTab() === 'history' ? 'bg-gray-900/50 text-purple-300 border-b-2 border-purple-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white border-b-2 border-transparent'">
+                  <i class="fas fa-history"></i>
+                  <span>Histórico</span>
+              </button>
+              <button (click)="setActiveSideTab('backlog')"
+                      class="w-1/2 px-4 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none flex items-center justify-center space-x-2"
+                      [class]="activeSideTab() === 'backlog' ? 'bg-gray-900/50 text-cyan-300 border-b-2 border-cyan-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white border-b-2 border-transparent'">
+                  <i class="fas fa-stream"></i>
+                  <span>Backlog</span>
+              </button>
+          </div>
+
+          <div class="flex-grow overflow-y-auto pr-2 -mr-2 space-y-3">
+            @if (activeSideTab() === 'history') {
+              <div class="flex justify-between items-center mb-1">
+                <h2 class="text-2xl font-semibold text-gray-100 flex items-center">
+                  Histórico
+                </h2>
+                @if (history().length > 0) {
+                  <button (click)="clearHistory()" class="text-sm font-medium text-gray-400 hover:text-red-400 transition-colors px-3 py-1 rounded-md hover:bg-red-900/20">
+                    Limpar
+                  </button>
+                }
+              </div>
+              @if (history().length === 0) {
+                <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                  <i class="fas fa-search fa-2x mb-3"></i>
+                  <p>Nenhuma validação ainda.</p>
+                  <p class="text-sm">Seu histórico aparecerá aqui.</p>
+                </div>
+              } @else {
+                @for (item of history(); track item.id) {
+                  <div 
+                    (click)="loadFromHistory(item)"
+                    class="bg-gray-900/60 p-3 rounded-lg border border-gray-700 cursor-pointer hover:bg-gray-700/50 hover:border-blue-500 transition-all">
+                    <div class="flex justify-between items-start gap-2">
+                        <p class="text-sm text-gray-200 truncate flex-1">{{ item.userStory }}</p>
+                        @if (item.model) {
+                          <span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 whitespace-nowrap">
+                            <i class="fas fa-brain mr-1.5 text-pink-400"></i>
+                            {{ item.model }}
+                          </span>
+                        }
+                    </div>
+                    @if (item.epicSuggestion || item.featureSuggestion || item.storyEstimate) {
+                      <div class="flex items-center flex-wrap gap-2 mt-2">
+                        @if (item.epicSuggestion) {
+                          <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-orange-900 text-orange-300">
+                            <i class="fas fa-layer-group text-orange-400"></i>
+                            {{ item.epicSuggestion }}
+                          </span>
+                        }
+                        @if (item.featureSuggestion) {
+                          <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-purple-900 text-purple-300">
+                            <i class="fas fa-puzzle-piece text-purple-400"></i>
+                            {{ item.featureSuggestion }}
+                          </span>
+                        }
+                         @if (item.storyEstimate) {
+                          <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-900 text-yellow-300">
+                              <i class="fas fa-stopwatch text-yellow-400"></i>
+                              {{ item.storyEstimate }}
+                          </span>
+                        }
+                      </div>
+                    }
+                    <p class="text-xs text-gray-500 mt-1">{{ item.timestamp | date:'dd/MM/yy HH:mm' }}</p>
+                  </div>
+                }
+              }
+            }
+            @if (activeSideTab() === 'backlog') {
+              <div class="flex justify-between items-center mb-4">
+                  <h2 class="text-2xl font-semibold text-gray-100">Projetos</h2>
+                  <button (click)="showCreateBacklogInput.set(!showCreateBacklogInput())" class="text-sm font-medium text-gray-300 bg-cyan-800/50 hover:bg-cyan-700/50 px-3 py-1.5 rounded-md transition-colors">
+                    <i class="fas fa-plus mr-1.5"></i> Novo
+                  </button>
+              </div>
+              @if (showCreateBacklogInput()) {
+                <div class="flex gap-2 mb-4">
+                  <input type="text" [(ngModel)]="newProjectName" placeholder="Nome do novo projeto" class="flex-grow bg-gray-900 text-gray-200 border border-gray-600 rounded-md p-2 text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500">
+                  <button (click)="createBacklog()" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-cyan-700 transition-colors text-sm">Criar</button>
+                </div>
+              }
+              @if (backlogs().length > 0) {
+                <select [ngModel]="selectedBacklogName()" (ngModelChange)="selectedBacklogName.set($event)" class="w-full bg-gray-900 text-gray-200 border border-gray-600 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mb-4">
+                  @for (backlog of backlogs(); track backlog.projectName) {
+                    <option [value]="backlog.projectName">{{ backlog.projectName }}</option>
+                  }
+                </select>
+              }
+
+              @if (activeBacklog(); as backlog) {
+                <h3 class="text-lg font-semibold text-cyan-300 mt-4 mb-2 border-b border-gray-700 pb-2">{{ backlog.projectName }}</h3>
+                @if (groupedBacklog(); as grouped) {
+                  <div class="space-y-4">
+                    @for (epicName of objectKeys(grouped); track epicName) {
+                      <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                        <h4 class="font-bold text-orange-400 text-lg flex items-center gap-2 mb-3">
+                          <i class="fas fa-layer-group w-5 text-center"></i>
+                          <span>{{ epicName }}</span>
+                        </h4>
+                        <div class="pl-4 space-y-3 border-l-2 border-gray-700 ml-2">
+                          @for (featureName of objectKeys(grouped[epicName]); track featureName) {
+                            <div>
+                              <h5 class="font-semibold text-purple-400 flex items-center gap-2 mb-2">
+                                <i class="fas fa-puzzle-piece w-5 text-center"></i>
+                                <span>{{ featureName }}</span>
+                              </h5>
+                              <div class="pl-4 space-y-2">
+                                @for (item of grouped[epicName][featureName]; track item.id) {
+                                  @let storyIndex = getStoryIndexInBacklog(item.id);
+                                  <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-700 group">
+                                    <p class="text-sm text-gray-200 mb-2">{{ item.title }}</p>
+                                    <div class="flex justify-between items-center">
+                                      <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-900 text-yellow-300">
+                                          <i class="fas fa-stopwatch text-yellow-400"></i>
+                                          {{ item.storyEstimate }}
+                                        </span>
+                                      </div>
+                                      <div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button (click)="viewStoryFromBacklog(item)" title="Visualizar Detalhes" class="px-2 py-1 text-xs rounded-md bg-teal-800 hover:bg-teal-700"><i class="fas fa-eye"></i></button>
+                                          <button (click)="startEditing(item)" title="Editar" class="px-2 py-1 text-xs rounded-md bg-blue-800 hover:bg-blue-700"><i class="fas fa-pen"></i></button>
+                                          <button (click)="moveStory(item.id, 'up')" title="Mover para Cima" [disabled]="storyIndex === 0" class="px-2 py-1 text-xs rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"><i class="fas fa-arrow-up"></i></button>
+                                          <button (click)="moveStory(item.id, 'down')" title="Mover para Baixo" [disabled]="storyIndex === (backlog.items.length - 1)" class="px-2 py-1 text-xs rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"><i class="fas fa-arrow-down"></i></button>
+                                          <button (click)="deleteStory(item.id)" title="Excluir" class="px-2 py-1 text-xs rounded-md bg-red-800 hover:bg-red-700"><i class="fas fa-trash"></i></button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                }
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <div class="flex flex-col items-center justify-center py-8 text-center text-gray-500">
+                    <i class="fas fa-folder-open fa-2x mb-3"></i>
+                    <p>Backlog vazio.</p>
+                    <p class="text-sm">Adicione histórias refinadas aqui.</p>
+                  </div>
+                }
+              } @else {
+                 <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                  <i class="fas fa-box-open fa-2x mb-3"></i>
+                  <p>Nenhum projeto criado.</p>
+                  <p class="text-sm">Crie um novo projeto para começar.</p>
+                </div>
+              }
+            }
+          </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="lg:col-span-4 bg-gray-800 p-6 rounded-2xl shadow-lg flex flex-col border border-gray-700">
+          <h2 class="text-2xl font-semibold mb-4 text-gray-100 flex items-center">
+            <i class="fas fa-pencil-alt mr-3 text-blue-400"></i>
+            Insira a História de Usuário
+          </h2>
+          <textarea
+            class="w-full flex-grow bg-gray-900 text-gray-200 border border-gray-600 rounded-lg p-4 text-base leading-relaxed focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow duration-200 resize-none"
+            placeholder="Como um [tipo de usuário], eu quero [ação], para que [benefício]..."
+            [ngModel]="userStory()"
+            (ngModelChange)="userStory.set($event)"
+            rows="12"
+          ></textarea>
+          <div class="mt-6 w-full">
+            <button
+              (click)="validateStory()"
+              [disabled]="isLoading()"
+              class="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 flex items-center justify-center shadow-md">
+               @if (isLoading()) {
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                <span>Analisando...</span>
+              } @else {
+                <i class="fas fa-rocket mr-2"></i>
+                <span>Analisar e Refinar com IA</span>
+              }
+            </button>
+          </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="lg:col-span-5 bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex flex-col">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold text-gray-100 flex items-center">
+              <i class="fas fa-chart-bar mr-3 text-teal-400"></i>
+              Resultados da Validação
+            </h2>
+            @if (validationResult()?.model) {
+              <span class="inline-flex items-center text-sm font-medium px-2.5 py-1 rounded-full bg-gray-700 text-gray-300">
+                <i class="fas fa-brain mr-2 text-pink-400"></i>
+                {{ validationResult()!.model }}
+              </span>
+            }
+          </div>
+          <div class="flex-grow overflow-y-auto pr-2">
+            @if (isLoading() || isImporting()) {
+              <!-- Skeleton Loader -->
+              <div class="animate-pulse space-y-4">
+                <div class="h-4 bg-gray-700 rounded w-1/4"></div>
+                <div class="h-8 bg-gray-700 rounded w-full"></div>
+                <div class="space-y-3 mt-6">
+                  @for (item of [1,2,3,4,5,6]; track item) {
+                    <div class="grid grid-cols-12 gap-4 items-center">
+                      <div class="col-span-1 h-6 w-6 bg-gray-700 rounded-full"></div>
+                      <div class="col-span-11 h-4 bg-gray-700 rounded"></div>
+                    </div>
+                    <div class="h-3 bg-gray-700 rounded ml-10"></div>
+                  }
+                </div>
+              </div>
+            } @else if (error()) {
+              <div class="flex flex-col items-center justify-center h-full text-center bg-red-900/50 p-6 rounded-lg">
+                <i class="fas fa-exclamation-triangle fa-3x text-red-400 mb-4"></i>
+                <p class="text-xl font-semibold text-red-300">Ocorreu um Erro</p>
+                <p class="text-gray-300">{{ error() }}</p>
+              </div>
+            } @else if (validationResult(); as result) {
+                @if (result.validationType === 'strategic') {
+                  <div class="space-y-6">
+                    @if (result.divisionAnalysis) {
+                      <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
+                        <h3 class="font-semibold text-amber-300 mb-2 flex items-center"><i class="fas fa-code-branch mr-2"></i>Análise de Divisão</h3>
+                        <div class="prose max-w-none text-gray-300" [innerHTML]="markdownToHtml(result.divisionAnalysis)"></div>
+                      </div>
+                    }
+                    
+                    @for (story of result.refinedStories; track story.title; let i = $index) {
+                      <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 space-y-4">
+                        <div class="flex justify-between items-start">
+                          <h3 class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 flex-1">
+                            <span class="text-gray-500 font-normal">História de Usuário {{ result.refinedStories.length > 1 ? i + 1 : '' }}:</span> {{ story.title }}
+                          </h3>
+                          <div class="flex items-center ml-4 space-x-2">
+                            <button (click)="copyToClipboard(story, i)" 
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-200 flex items-center"
+                                    [class]="copiedStoryIndex() === i ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">
+                                @if(copiedStoryIndex() === i) {
+                                    <i class="fas fa-check mr-2"></i>
+                                    <span>Copiado!</span>
+                                } @else {
+                                    <i class="fas fa-copy mr-2"></i>
+                                    <span>Copiar</span>
+                                }
+                            </button>
+                            <button (click)="addStoryToBacklog(i)" 
+                                    [disabled]="!activeBacklog() || isStoryInBacklog(story.title) || storyAddedToBacklog()[i]"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-200 flex items-center bg-cyan-800 text-cyan-200 hover:bg-cyan-700 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed">
+                                @if(storyAddedToBacklog()[i]) {
+                                    <i class="fas fa-check mr-2"></i>
+                                    <span>Adicionada!</span>
+                                } @else {
+                                    <i class="fas fa-plus-circle mr-2"></i>
+                                    <span>Adicionar ao Backlog</span>
+                                }
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div class="bg-gray-900/50 p-3 rounded-lg">
+                            <h4 class="font-semibold text-sm text-orange-400 mb-1">Sugestão de Épico</h4>
+                            <p class="text-gray-200">{{ story.epicSuggestion }}</p>
+                          </div>
+                          <div class="bg-gray-900/50 p-3 rounded-lg">
+                            <h4 class="font-semibold text-sm text-purple-400 mb-1">Sugestão de Feature</h4>
+                            <p class="text-gray-200">{{ story.featureSuggestion }}</p>
+                          </div>
+                        </div>
+                
+                        <div class="bg-gray-900/50 p-4 rounded-lg">
+                          <h4 class="font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-user-circle mr-2 text-sky-400"></i>Visão do Usuário</h4>
+                          <div class="prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(story.userPersona)"></div>
+                        </div>
+                
+                        <div class="bg-gray-900/50 p-4 rounded-lg">
+                          <h4 class="font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-briefcase mr-2 text-teal-400"></i>Narrativa de Negócio</h4>
+                          <div class="prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(story.businessNarrative)"></div>
+                        </div>
+
+                        <div class="bg-gray-900/50 p-4 rounded-lg">
+                          <h4 class="font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-check-double mr-2 text-green-400"></i>Resumo dos Critérios de Aceite</h4>
+                          <div class="prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(story.acceptanceCriteriaSummary)"></div>
+                        </div>
+                        
+                        <div class="bg-gray-900/50 rounded-lg border border-gray-700/50">
+                            <!-- Tab Headers -->
+                            <div class="flex border-b border-gray-700">
+                                <button (click)="setActiveTab(i, 'bdd')"
+                                        class="flex-1 px-4 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none flex items-center justify-center space-x-2"
+                                        [class]="(activeTabs()[i] ?? 'bdd') === 'bdd' ? 'bg-gray-800 text-blue-300 border-b-2 border-blue-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white border-b-2 border-transparent'">
+                                    <i class="fas fa-tasks"></i>
+                                    <span>Critérios de Aceite (BDD)</span>
+                                </button>
+                                <button (click)="setActiveTab(i, 'cypress')"
+                                        class="flex-1 px-4 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none flex items-center justify-center space-x-2"
+                                        [class]="(activeTabs()[i] ?? 'bdd') === 'cypress' ? 'bg-gray-800 text-red-300 border-b-2 border-red-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white border-b-2 border-transparent'">
+                                    <i class="fas fa-vial"></i>
+                                    <span>Cenários de Teste (QA)</span>
+                                </button>
+                                <button (click)="setActiveTab(i, 'edge')"
+                                        class="flex-1 px-4 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none flex items-center justify-center space-x-2"
+                                        [class]="(activeTabs()[i] ?? 'bdd') === 'edge' ? 'bg-gray-800 text-amber-300 border-b-2 border-amber-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white border-b-2 border-transparent'">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>Casos Extremos</span>
+                                </button>
+                                 <button (click)="setActiveTab(i, 'docs')"
+                                        class="flex-1 px-4 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none flex items-center justify-center space-x-2"
+                                        [class]="(activeTabs()[i] ?? 'bdd') === 'docs' ? 'bg-gray-800 text-green-300 border-b-2 border-green-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white border-b-2 border-transparent'">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>Doc. Técnica</span>
+                                </button>
+                            </div>
+                            <!-- Tab Content -->
+                            <div class="p-4">
+                                @if ((activeTabs()[i] ?? 'bdd') === 'bdd') {
+                                    <div class="flex justify-between items-center mb-3">
+                                      <h4 class="font-semibold text-gray-300">Conteúdo dos Critérios</h4>
+                                      <button (click)="generateDetailedAC(story, i)"
+                                              [disabled]="isGeneratingDetailedAC()[i]"
+                                              class="px-3 py-1.5 text-xs font-semibold rounded-md bg-indigo-800/80 text-indigo-200 hover:bg-indigo-700/80 disabled:opacity-50 disabled:bg-gray-600 disabled:cursor-wait flex items-center transition-all"
+                                              title="Use a IA para expandir e detalhar estes critérios de aceite.">
+                                          @if (isGeneratingDetailedAC()[i]) {
+                                              <i class="fas fa-spinner fa-spin mr-2"></i>
+                                              <span>Detalhando...</span>
+                                          } @else {
+                                              <i class="fas fa-wand-magic-sparkles mr-2"></i>
+                                              <span>Detalhar com IA</span>
+                                          }
+                                      </button>
+                                    </div>
+                                    <div class="prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(story.acceptanceCriteria)"></div>
+                                }
+                                @if ((activeTabs()[i] ?? 'bdd') === 'cypress') {
+                                    <div class="space-y-6">
+                                        <div>
+                                            <h4 class="font-semibold text-gray-300 mb-2">Testes End-to-End (Cypress)</h4>
+                                            <div class="prose prose-sm max-w-none bg-gray-900 p-3 rounded-md whitespace-pre-wrap font-mono text-xs" [innerHTML]="markdownToHtml(story.testScenarios.e2e)"></div>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-300 mb-2">Testes de Integração</h4>
+                                            <div class="prose prose-sm max-w-none bg-gray-900 p-3 rounded-md whitespace-pre-wrap font-mono text-xs" [innerHTML]="markdownToHtml(story.testScenarios.integration)"></div>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-300 mb-2">Testes Unitários</h4>
+                                            <div class="prose prose-sm max-w-none bg-gray-900 p-3 rounded-md whitespace-pre-wrap font-mono text-xs" [innerHTML]="markdownToHtml(story.testScenarios.unit)"></div>
+                                        </div>
+                            
+                                        <!-- Alternative formats generator -->
+                                        <div class="mt-6 pt-4 border-t border-gray-700">
+                                            <h4 class="font-semibold text-gray-300 mb-3">Gerar em Outro Formato</h4>
+                                            <div class="flex items-center space-x-3">
+                                                <button (click)="generateAlternativeTests(story, i, 'Jest')" [disabled]="isGeneratingAltTests()[i]" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-wait flex items-center">
+                                                    Gerar com Jest
+                                                </button>
+                                                <button (click)="generateAlternativeTests(story, i, 'Mocha')" [disabled]="isGeneratingAltTests()[i]" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-wait flex items-center">
+                                                    Gerar com Mocha
+                                                </button>
+                                            </div>
+                            
+                                            @if (isGeneratingAltTests()[i]) {
+                                              <div class="flex items-center mt-4 text-sm text-gray-400">
+                                                  <i class="fas fa-spinner fa-spin mr-2"></i>
+                                                  <span>Gerando código alternativo...</span>
+                                              </div>
+                                            }
+                            
+                                            @if (alternativeTestResults()[i]; as altTest) {
+                                                <div class="mt-4">
+                                                    <h5 class="font-semibold text-gray-300 mb-2">Resultado para {{ altTest.format }}:</h5>
+                                                    <div class="prose prose-sm max-w-none bg-gray-900 p-3 rounded-md whitespace-pre-wrap font-mono text-xs" [innerHTML]="markdownToHtml(altTest.code)"></div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                @if ((activeTabs()[i] ?? 'bdd') === 'edge') {
+                                  @if (story.potentialEdgeCases && story.potentialEdgeCases.length > 0) {
+                                    <div class="space-y-2">
+                                      @for(item of story.potentialEdgeCases; track item){
+                                        <div class="flex items-start p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+                                          <i class="fas fa-exclamation-triangle text-amber-300 w-5 text-center mt-1 mr-3 shrink-0"></i>
+                                          <div class="flex-1 prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(item)"></div>
+                                        </div>
+                                      }
+                                    </div>
+                                  } @else {
+                                    <p class="text-gray-500 italic">Nenhum caso extremo identificado.</p>
+                                  }
+                                }
+                                @if ((activeTabs()[i] ?? 'bdd') === 'docs') {
+                                  <div class="p-4">
+                                      <h4 class="font-semibold text-gray-300 mb-3">Gerador de Documentação Técnica</h4>
+                                      <p class="text-sm text-gray-400 mb-4">
+                                          Gere um rascunho de documentação técnica ou um diagrama de arquitetura simplificado com base nas considerações e dependências da história.
+                                      </p>
+                                      <div class="flex items-center space-x-3 mb-4">
+                                          <button (click)="generateTechnicalArtifact(story, i, 'doc')" [disabled]="!!isGeneratingDoc()[i]" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-wait flex items-center">
+                                              <i class="fas fa-file-alt mr-2"></i> Gerar Documento
+                                          </button>
+                                          <button (click)="generateTechnicalArtifact(story, i, 'c4-diagram')" [disabled]="!!isGeneratingDoc()[i]" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-wait flex items-center">
+                                              <i class="fas fa-sitemap mr-2"></i> Gerar Diagrama C4 (Mermaid)
+                                          </button>
+                                      </div>
+                          
+                                      @if (isGeneratingDoc()[i]; as loading) {
+                                        <div class="flex items-center mt-4 text-sm text-gray-400">
+                                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                                            <span>Gerando {{ loading.type === 'doc' ? 'documento' : 'diagrama C4' }}...</span>
+                                        </div>
+                                      }
+                          
+                                      @if (technicalDocumentation()[i]; as doc) {
+                                          <div class="mt-4">
+                                              @if (doc.type === 'doc') {
+                                                  <div class="prose prose-sm max-w-none bg-gray-900 p-4 rounded-md border border-gray-700" [innerHTML]="markdownToHtml(doc.content)"></div>
+                                              } @else {
+                                                  <h5 class="font-semibold text-gray-300 mb-2">Diagrama de Arquitetura C4 (Sintaxe Mermaid)</h5>
+                                                  <p class="text-xs text-gray-500 mb-2">Copie o código abaixo e cole em um editor compatível com Mermaid.js para visualizar.</p>
+                                                  <div class="prose prose-sm max-w-none bg-gray-900 p-3 rounded-md whitespace-pre-wrap font-mono text-xs" [innerHTML]="markdownToHtml('```mermaid\n' + doc.content + '\n```')"></div>
+                                              }
+                                          </div>
+                                      }
+                                  </div>
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-900/50 p-4 rounded-lg">
+                          <h4 class="font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-stopwatch mr-2 text-yellow-400"></i>Estimativa da User Story</h4>
+                          <p class="text-lg font-bold text-gray-200">{{ story.storyEstimate }}</p>
+                          <div class="prose prose-sm max-w-none text-gray-400 mt-1" [innerHTML]="markdownToHtml(story.storyEstimateJustification)"></div>
+                        </div>
+                
+                        <div class="bg-gray-900/50 p-4 rounded-lg">
+                          <h4 class="font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-cogs mr-2 text-blue-400"></i>Tarefas de Desenvolvimento (Total: {{ story.tasksTotalEstimate }})</h4>
+                            <ul class="space-y-3">
+                              @for(task of story.developmentTasks; track task.name) {
+                                <li class="p-3 bg-gray-800/60 rounded-md border border-gray-700">
+                                  <div class="flex justify-between items-center">
+                                    <span class="font-semibold text-gray-200">{{ task.name }}</span>
+                                    <div class="flex items-center space-x-4">
+                                       <span class="text-xs font-medium px-2 py-0.5 rounded-full" 
+                                          [class]="task.responsibility === 'Frontend' ? 'bg-blue-900 text-blue-300' : task.responsibility === 'Backend' ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'">
+                                          {{ task.responsibility }}
+                                       </span>
+                                       <span class="font-bold text-gray-200">{{ task.estimate }}</span>
+                                    </div>
+                                  </div>
+                                  <div class="mt-2 text-sm text-gray-400 prose-sm max-w-none" [innerHTML]="markdownToHtml(task.description)"></div>
+                                </li>
+                              }
+                            </ul>
+                        </div>
+                        
+                        @if (story.technicalConsiderations && story.technicalConsiderations.length > 0) {
+                          <div class="bg-gray-900/50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-purple-300 mb-2 flex items-center"><i class="fas fa-microchip mr-2"></i>Considerações Técnicas</h4>
+                            <div class="space-y-2 mt-2">
+                              @for(item of story.technicalConsiderations; track item){
+                                <div class="flex items-start p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+                                  <i class="fas fa-microchip text-purple-300 w-5 text-center mt-1 mr-3 shrink-0"></i>
+                                  <div class="flex-1 prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(item)"></div>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+
+                        @if (story.identifiedDependencies && story.identifiedDependencies.length > 0) {
+                          <div class="bg-gray-900/50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-rose-300 mb-2 flex items-center"><i class="fas fa-link mr-2"></i>Dependências Identificadas</h4>
+                             <div class="space-y-2 mt-2">
+                              @for(item of story.identifiedDependencies; track item){
+                                <div class="flex items-start p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+                                  <i class="fas fa-link text-rose-300 w-5 text-center mt-1 mr-3 shrink-0"></i>
+                                  <div class="flex-1 prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(item)"></div>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+
+                        @if (story.riskAnalysis && story.riskAnalysis.length > 0) {
+                          <div class="bg-gray-900/50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-red-300 mb-2 flex items-center"><i class="fas fa-shield-alt mr-2"></i>Análise de Riscos</h4>
+                            <div class="space-y-3 mt-2">
+                              @for(risk of story.riskAnalysis; track risk.description){
+                                <div class="p-3 bg-gray-800/60 rounded-md border border-gray-700">
+                                  <div class="flex items-center mb-2">
+                                    @if(risk.type === 'Técnico') {
+                                      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-purple-900 text-purple-300">
+                                          <i class="fas fa-microchip text-purple-400"></i>
+                                          Risco Técnico
+                                      </span>
+                                    } @else if (risk.type === 'Negócio') {
+                                      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-orange-900 text-orange-300">
+                                          <i class="fas fa-briefcase text-orange-400"></i>
+                                          Risco de Negócio
+                                      </span>
+                                    } @else if (risk.type === 'Usabilidade') {
+                                      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900 text-sky-300">
+                                          <i class="fas fa-mouse-pointer text-sky-400"></i>
+                                          Risco de Usabilidade
+                                      </span>
+                                    }
+                                  </div>
+                                  <p class="text-sm text-gray-300 font-medium">{{ risk.description }}</p>
+                                  <div class="mt-2 pt-2 border-t border-gray-700/50 flex items-start">
+                                    <i class="fas fa-lightbulb text-yellow-400 w-5 text-center mt-1 mr-2 shrink-0"></i>
+                                    <div class="flex-1">
+                                      <p class="text-xs font-semibold text-gray-400">Sugestão de Mitigação:</p>
+                                      <p class="text-sm text-gray-300">{{ risk.mitigationSuggestion }}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+
+                        @if (story.questions && story.questions.length > 0) {
+                          <div class="bg-gray-900/50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-question-circle mr-2 text-gray-400"></i>Dúvidas</h4>
+                             <div class="space-y-2 mt-2">
+                              @for(item of story.questions; track item){
+                                  <div class="flex items-start p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+                                    <i class="fas fa-question-circle text-gray-400 w-5 text-center mt-1 mr-3 shrink-0"></i>
+                                    <div class="flex-1 prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(item)"></div>
+                                  </div>
+                              }
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <!-- Validation Result Display for basic/advanced -->
+                  <div class="space-y-6">
+                    <div>
+                      <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-300">Pontuação Geral</span>
+                        <span class="text-sm font-bold" [class]="getProgressBarColor()">{{ result.overallScore }} / 100</span>
+                      </div>
+                      <div class="w-full bg-gray-700 rounded-full h-2.5">
+                        <div class="h-2.5 rounded-full transition-all duration-500" [class]="getProgressBarColor()" [style.width]="getProgressBarWidth()"></div>
+                      </div>
+                    </div>
+
+                    <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
+                      <h3 class="font-semibold text-teal-300 mb-2">Feedback Geral</h3>
+                      <div class="prose max-w-none text-gray-300" [innerHTML]="markdownToHtml(result.overallFeedback)"></div>
+                    </div>
+                    
+                    @if (result.rewrittenStory) {
+                      <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
+                        <h3 class="font-semibold text-blue-300 mb-2">Reescrita Sugerida</h3>
+                        <p class="text-gray-300 italic">"{{ result.rewrittenStory }}"</p>
+                      </div>
+                    }
+
+                    <div class="space-y-3">
+                      <h3 class="text-lg font-semibold text-gray-200 mt-4 border-b border-gray-700 pb-2">Princípios INVEST</h3>
+                      @if (result.invest) {
+                        @for (criterion of objectKeys(result.invest); track criterion) {
+                          @if (result.invest[criterion]; as item) {
+                            <div class="p-3 rounded-md" [class]="item.met ? 'bg-green-900/50' : 'bg-red-900/50'">
+                              <div class="flex items-center">
+                                @if (item.met) {
+                                  <i class="fas fa-check-circle text-green-400 w-5 mr-3"></i>
+                                } @else {
+                                  <i class="fas fa-times-circle text-red-400 w-5 mr-3"></i>
+                                }
+                                <h4 class="font-semibold text-gray-100 capitalize">{{ criterion }}</h4>
+                              </div>
+                              <div class="ml-8 text-sm text-gray-300 mt-1 prose-sm max-w-none" [innerHTML]="markdownToHtml(item.feedback)"></div>
+                            </div>
+                          }
+                        }
+                      }
+                    </div>
+
+                    <!-- Advanced Results -->
+                    @if (result.validationType === 'advanced') {
+                      <div class="mt-6 pt-6 border-t border-gray-700 space-y-4">
+                        <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
+                            <h3 class="font-semibold text-sky-300 mb-2 flex items-center"><i class="fas fa-tasks mr-2"></i>Critérios de Aceitação (Gherkin)</h3>
+                            <pre class="text-gray-300 whitespace-pre-wrap text-sm font-mono bg-gray-900 p-3 rounded-md">{{ result.acceptanceCriteria }}</pre>
+                        </div>
+                        <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
+                            <h3 class="font-semibold text-amber-300 mb-2 flex items-center"><i class="fas fa-exclamation-circle mr-2"></i>Casos Extremos Potenciais</h3>
+                            <div class="space-y-2 mt-2">
+                                @if (result.potentialEdgeCases) {
+                                  @for(item of result.potentialEdgeCases; track item){
+                                      <div class="flex items-start p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+                                        <i class="fas fa-exclamation-triangle text-amber-300 w-5 text-center mt-1 mr-3 shrink-0"></i>
+                                        <div class="flex-1 prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(item)"></div>
+                                      </div>
+                                  }
+                                }
+                            </div>
+                        </div>
+                        <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
+                            <h3 class="font-semibold text-purple-300 mb-2 flex items-center"><i class="fas fa-microchip mr-2"></i>Considerações Técnicas</h3>
+                            <div class="space-y-2 mt-2">
+                                @if (result.technicalConsiderations) {
+                                  @for(item of result.technicalConsiderations; track item){
+                                      <div class="flex items-start p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+                                        <i class="fas fa-microchip text-purple-300 w-5 text-center mt-1 mr-3 shrink-0"></i>
+                                        <div class="flex-1 prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(item)"></div>
+                                      </div>
+                                  }
+                                }
+                            </div>
+                        </div>
+                        <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
+                            <h3 class="font-semibold text-rose-300 mb-2 flex items-center"><i class="fas fa-link mr-2"></i>Dependências Identificadas</h3>
+                            <div class="space-y-2 mt-2">
+                                @if (result.identifiedDependencies) {
+                                  @for(item of result.identifiedDependencies; track item){
+                                      <div class="flex items-start p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+                                        <i class="fas fa-link text-rose-300 w-5 text-center mt-1 mr-3 shrink-0"></i>
+                                        <div class="flex-1 prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(item)"></div>
+                                      </div>
+                                  }
+                                }
+                            </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+            } @else {
+              <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                <i class="fas fa-clipboard-check fa-3x mb-4"></i>
+                <p class="text-xl">Seu relatório de validação aparecerá aqui.</p>
+                <p>Insira uma história de usuário e clique em um dos botões para começar.</p>
+              </div>
+            }
+          </div>
+        </div>
+      </main>
+      
+      <!-- Edit Story Modal -->
+      @if (editingStory(); as story) {
+        <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" (click)="cancelEditing()">
+            <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-600" (click)="$event.stopPropagation()">
+                <header class="p-5 border-b border-gray-700 flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-100">Editar História de Usuário</h2>
+                    <button (click)="cancelEditing()" class="text-gray-400 hover:text-white">&times;</button>
+                </header>
+                <main class="p-6 overflow-y-auto space-y-6">
+                    <!-- Basic Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Título</label>
+                            <input type="text" [(ngModel)]="story.title" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
+                        </div>
+                         <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Estimativa (ex: 8h)</label>
+                            <input type="text" [(ngModel)]="story.storyEstimate" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Sugestão de Épico</label>
+                            <input type="text" [(ngModel)]="story.epicSuggestion" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Sugestão de Feature</label>
+                            <input type="text" [(ngModel)]="story.featureSuggestion" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
+                        </div>
+                    </div>
+
+                    <!-- Text Areas -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Visão do Usuário</label>
+                        <textarea [(ngModel)]="story.userPersona" rows="3" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm"></textarea>
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Narrativa de Negócio</label>
+                        <textarea [(ngModel)]="story.businessNarrative" rows="4" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Critérios de Aceite (BDD)</label>
+                        <textarea [(ngModel)]="story.acceptanceCriteria" rows="8" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm font-mono"></textarea>
+                    </div>
+
+                    <!-- Development Tasks -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-200 mb-2">Tarefas de Desenvolvimento</h3>
+                        <div class="space-y-3">
+                            @for (task of story.developmentTasks; track task.name) {
+                                <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                                    <input type="text" [(ngModel)]="task.name" placeholder="Nome da tarefa" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm font-semibold mb-2">
+                                    <textarea [(ngModel)]="task.description" rows="2" placeholder="Descrição" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm mb-2"></textarea>
+                                    <div class="flex gap-2">
+                                        <input type="text" [(ngModel)]="task.responsibility" placeholder="Responsabilidade" class="w-1/2 bg-gray-700 border-gray-600 rounded-md p-2 text-sm">
+                                        <input type="text" [(ngModel)]="task.estimate" placeholder="Estimativa" class="w-1/2 bg-gray-700 border-gray-600 rounded-md p-2 text-sm">
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                     <!-- Risk Analysis -->
+                    @if(story.riskAnalysis) {
+                      <div>
+                          <h3 class="text-lg font-semibold text-gray-200 mb-2">Análise de Riscos</h3>
+                          <div class="space-y-3">
+                              @for (risk of story.riskAnalysis; track $index) {
+                                  <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                                      <div class="flex gap-2 mb-2">
+                                          <select [(ngModel)]="risk.type" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm">
+                                              <option value="Técnico">Técnico</option>
+                                              <option value="Negócio">Negócio</option>
+                                              <option value="Usabilidade">Usabilidade</option>
+                                          </select>
+                                      </div>
+                                      <textarea [(ngModel)]="risk.description" rows="2" placeholder="Descrição do Risco" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm mb-2"></textarea>
+                                      <textarea [(ngModel)]="risk.mitigationSuggestion" rows="2" placeholder="Sugestão de Mitigação" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm"></textarea>
+                                  </div>
+                              }
+                          </div>
+                      </div>
+                    }
+                </main>
+                <footer class="p-5 border-t border-gray-700 flex justify-end items-center space-x-4">
+                    <button (click)="cancelEditing()" class="px-6 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold transition-colors">Cancelar</button>
+                    <button (click)="saveEditing()" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors">Salvar Alterações</button>
+                </footer>
+            </div>
+        </div>
+      }
+    </div>
+  } @else if (currentView() === 'import') {
+    <!-- Import Screen -->
+    <div class="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+      <div class="w-full max-w-2xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400">
+                Importar para Backlog
+            </h1>
+            <p class="mt-2 text-lg text-gray-400">
+                Gere um backlog completo a partir de seus documentos de requisitos.
+            </p>
+        </header>
+
+        <main class="bg-gray-800 border border-gray-700 rounded-2xl p-8 space-y-6">
+            @if (backlogs().length === 0) {
+              <div class="p-4 text-center bg-yellow-900/50 rounded-lg text-yellow-300">
+                <p class="font-semibold">Nenhum projeto encontrado!</p>
+                <p class="text-sm">Por favor, volte ao início, vá para a seção de backlog e crie um projeto primeiro.</p>
+              </div>
+            } @else {
+              <div>
+                <label for="project-select" class="block mb-2 text-lg font-semibold text-gray-300">1. Selecione o Projeto de Destino</label>
+                <select id="project-select" [ngModel]="selectedBacklogName()" (ngModelChange)="selectedBacklogName.set($event)" class="w-full bg-gray-900 text-gray-200 border border-gray-600 rounded-lg p-3 text-base focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                  @for (backlog of backlogs(); track backlog.projectName) {
+                    <option [value]="backlog.projectName">{{ backlog.projectName }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label class="block mb-2 text-lg font-semibold text-gray-300">2. Envie seus Documentos</label>
+                <label for="file-upload" class="flex flex-col items-center justify-center w-full h-40 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-900/50 hover:bg-gray-700/50 transition-colors">
+                  <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <i class="fas fa-cloud-upload-alt fa-3x text-gray-500 mb-3"></i>
+                    <p class="mb-2 text-base text-gray-400"><span class="font-semibold text-green-400">Clique para enviar</span> ou arraste e solte</p>
+                    <p class="text-xs text-gray-500">Arquivos .txt ou .md (MAX. 500KB por arquivo)</p>
+                  </div>
+                  <input id="file-upload" type="file" class="hidden" (change)="onFileSelected($event)" accept=".txt,.md" multiple />
+                </label>
+                @if (importedFiles().length > 0) {
+                  <div class="mt-4 text-sm text-gray-300">
+                    <p class="font-semibold">{{ importedFiles().length }} arquivo(s) selecionado(s):</p>
+                    <ul class="list-disc list-inside pl-2 mt-1">
+                      @for(file of importedFiles(); track file.name) {
+                        <li class="font-medium text-green-400 truncate">{{ file.name }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (importError()) {
+              <div class="p-4 mt-2 text-center bg-red-900/50 rounded-lg text-red-300 text-sm">
+                <p>{{ importError() }}</p>
+              </div>
+            }
+
+            <div class="flex items-center gap-4 pt-4">
+                 <button (click)="goHome()" class="w-1/3 bg-gray-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center justify-center shadow-md">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    <span>Voltar</span>
+                </button>
+                <button (click)="processImportedFiles()" 
+                        [disabled]="backlogs().length === 0 || importedFiles().length === 0 || !selectedBacklogName() || isImporting()"
+                        class="w-2/3 bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center shadow-md">
+                  @if (isImporting()) {
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    <span>Analisando Documentos...</span>
+                  } @else {
+                    <i class="fas fa-cogs mr-2"></i>
+                    <span>Analisar e Gerar Backlog</span>
+                  }
+                </button>
+            </div>
+        </main>
+      </div>
+    </div>
+  }
+</div>

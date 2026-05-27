@@ -1,0 +1,114 @@
+export interface CriterionFeedback {
+  met: boolean;
+  feedback: string;
+}
+
+export interface InvestCriteria {
+  independent: CriterionFeedback;
+  negotiable: CriterionFeedback;
+  valuable: CriterionFeedback;
+  estimable: CriterionFeedback;
+  small: CriterionFeedback;
+  testable: CriterionFeedback;
+  [key: string]: CriterionFeedback; // Index signature
+}
+
+export interface ValidationResult {
+  validationType: 'basic';
+  overallScore: number;
+  overallFeedback: string;
+  rewrittenStory?: string;
+  invest: InvestCriteria;
+  model?: string;
+}
+
+export interface AdvancedValidationResult extends Omit<ValidationResult, 'validationType'> {
+  validationType: 'advanced';
+  acceptanceCriteria: string; // Gherkin format as a single string with newlines
+  potentialEdgeCases: string[];
+  technicalConsiderations: string[];
+  identifiedDependencies: string[];
+}
+
+export interface Risk {
+  type: 'Técnico' | 'Negócio' | 'Usabilidade';
+  description: string;
+  mitigationSuggestion: string;
+}
+
+export interface DevelopmentTask {
+  name: string;
+  responsibility: string;
+  description: string;
+  justification: string;
+  estimate: string;
+  technicalJustification: string;
+}
+
+export interface TestScenarios {
+  e2e: string;
+  integration: string;
+  unit: string;
+}
+
+export interface RefinedStory {
+  title: string;
+  epicSuggestion: string;
+  featureSuggestion: string;
+  userPersona: string;
+  businessNarrative: string;
+  interfaceDetails: string;
+  acceptanceCriteria: string;
+  acceptanceCriteriaSummary: string;
+  testScenarios: TestScenarios;
+  storyEstimate: string;
+  storyEstimateJustification: string;
+  developmentTasks: DevelopmentTask[];
+  tasksTotalEstimate: string;
+  questions: string[];
+  potentialEdgeCases: string[];
+  technicalConsiderations: string[];
+  identifiedDependencies: string[];
+  riskAnalysis: Risk[];
+  model?: string;
+}
+
+export interface StrategicRefinementResult {
+  validationType: 'strategic';
+  divisionAnalysis?: string;
+  refinedStories: RefinedStory[];
+  model?: string;
+}
+
+
+export type AnyValidationResult = ValidationResult | AdvancedValidationResult | StrategicRefinementResult;
+
+export interface HistoryItem {
+  id: number;
+  userStory: string;
+  result: AnyValidationResult;
+  timestamp: number;
+  epicSuggestion?: string;
+  featureSuggestion?: string;
+  storyEstimate?: string;
+  model?: string;
+}
+
+// -- Backlog Models --
+
+export interface BacklogItem extends RefinedStory {
+  id: number;
+  order: number;
+}
+
+export interface Backlog {
+  projectName: string;
+  items: BacklogItem[];
+}
+
+// -- Import Models --
+export interface ExtractedBacklogItems {
+  epicSuggestion: string;
+  featureSuggestion: string;
+  refinedStories: RefinedStory[];
+}
