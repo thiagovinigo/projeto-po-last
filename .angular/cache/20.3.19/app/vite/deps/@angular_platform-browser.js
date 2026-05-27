@@ -1,4 +1,7 @@
 import {
+  withHttpTransferCache
+} from "./chunk-BDTBH6S3.js";
+import {
   BrowserDomAdapter,
   BrowserGetTestability,
   BrowserModule,
@@ -15,9 +18,6 @@ import {
   platformBrowser,
   provideProtractorTestingSupport
 } from "./chunk-UTRI4LED.js";
-import {
-  withHttpTransferCache
-} from "./chunk-BDTBH6S3.js";
 import {
   getDOM
 } from "./chunk-UO62NBXY.js";

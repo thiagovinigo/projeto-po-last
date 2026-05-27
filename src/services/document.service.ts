@@ -1,9 +1,4 @@
 import { Injectable } from '@angular/core';
-import * as pdfjsLib from 'pdfjs-dist';
-import * as mammoth from 'mammoth';
-
-// Set the worker source for pdfjs
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs';
 
 @Injectable({
   providedIn: 'root'
@@ -31,6 +26,8 @@ export class DocumentService {
 
   private async extractTextFromPdf(file: File): Promise<string> {
     try {
+      const pdfjsLib = await import('pdfjs-dist');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs';
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';
@@ -56,6 +53,7 @@ export class DocumentService {
 
   private async extractTextFromDocx(file: File): Promise<string> {
     try {
+      const mammoth = await import('mammoth/mammoth.browser.js');
       const arrayBuffer = await file.arrayBuffer();
       const result = await mammoth.extractRawText({ arrayBuffer });
       return result.value.trim();
