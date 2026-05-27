@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GeminiService } from './services/gemini.service';
 import { AnyValidationResult, HistoryItem, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult } from './models/validation.model';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { DocumentService } from './services/document.service';
 
 declare var marked: any; // Allow TypeScript to recognize the 'marked' library from the CDN
 
@@ -15,6 +16,7 @@ declare var marked: any; // Allow TypeScript to recognize the 'marked' library f
 })
 export class AppComponent {
   private geminiService = inject(GeminiService);
+  private documentService = inject(DocumentService);
   private sanitizer = inject(DomSanitizer);
 
   // View State
@@ -541,9 +543,9 @@ ${story.testScenarios.unit}
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const files = Array.from(input.files);
-      const oversizedFile = files.find(file => file.size > 500 * 1024); // 500KB limit
+      const oversizedFile = files.find(file => file.size > 5 * 1024 * 1024); // 5MB limit
       if (oversizedFile) {
-        this.importError.set(`O arquivo '${oversizedFile.name}' é muito grande. O limite é de 500KB por arquivo.`);
+        this.importError.set(`O arquivo '${oversizedFile.name}' é muito grande. O limite é de 5MB por arquivo.`);
         this.importedFiles.set([]);
         return;
       }
@@ -567,21 +569,14 @@ ${story.testScenarios.unit}
 
     try {
       const fileProcessingPromises = files.map(file => {
-        return new Promise<ExtractedBacklogItems[]>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-            const content = e.target?.result as string;
-            try {
-              const result = await this.geminiService.processDocumentForBacklog(content);
-              resolve(result);
-            } catch (err) {
-              reject(new Error(`Falha ao processar o arquivo ${file.name}: ${err}`));
-            }
-          };
-          reader.onerror = () => {
-            reject(new Error(`Falha ao ler o arquivo: ${file.name}`));
-          };
-          reader.readAsText(file);
+        return new Promise<ExtractedBacklogItems[]>(async (resolve, reject) => {
+          try {
+            const content = await this.documentService.extractTextFromFile(file);
+            const result = await this.geminiService.processDocumentForBacklog(content);
+            resolve(result);
+          } catch (err) {
+            reject(new Error(`Falha ao processar o arquivo ${file.name}: ${err}`));
+          }
         });
       });
 

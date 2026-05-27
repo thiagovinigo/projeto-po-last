@@ -838,9 +838,9 @@
                   <div class="flex flex-col items-center justify-center pt-5 pb-6">
                     <i class="fas fa-cloud-upload-alt fa-3x text-gray-500 mb-3"></i>
                     <p class="mb-2 text-base text-gray-400"><span class="font-semibold text-green-400">Clique para enviar</span> ou arraste e solte</p>
-                    <p class="text-xs text-gray-500">Arquivos .txt ou .md (MAX. 500KB por arquivo)</p>
+                    <p class="text-xs text-gray-500">Arquivos .txt, .md, .pdf, .docx (MAX. 5MB por arquivo)</p>
                   </div>
-                  <input id="file-upload" type="file" class="hidden" (change)="onFileSelected($event)" accept=".txt,.md" multiple />
+                  <input id="file-upload" type="file" class="hidden" (change)="onFileSelected($event)" accept=".txt,.md,.pdf,.doc,.docx" multiple />
                 </label>
                 @if (importedFiles().length > 0) {
                   <div class="mt-4 text-sm text-gray-300">
