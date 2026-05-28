@@ -18,6 +18,9 @@
             },
             "browser": "index.tsx",
             "tsConfig": "tsconfig.json",
+            "define": {
+              "process.env.API_KEY": "\"__GROQ_API_KEY__\""
+            },
             "assets": [
               {
                 "glob": "pdf.worker.min.mjs",
