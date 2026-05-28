@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import Groq from 'groq-sdk';
 import { StrategicRefinementResult, TestScenarios, RefinedStory, ExtractedBacklogItems } from '../models/validation.model';
+import { environment } from '../environments/environment';
 
 const MODEL = 'llama-3.3-70b-versatile';
 
@@ -11,9 +12,9 @@ export class GeminiService {
   private groq: Groq;
 
   constructor() {
-    const apiKey = process.env.API_KEY;
+    const apiKey = environment.apiKey;
     if (!apiKey) {
-      throw new Error('API_KEY environment variable not set.');
+      throw new Error('API key not configured. Set apiKey in src/environments/environment.ts');
     }
     this.groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
   }

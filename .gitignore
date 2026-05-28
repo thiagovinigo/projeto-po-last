@@ -1,3 +1,7 @@
+# Environment — preencher localmente, não commitar com chaves reais
+.env
+.env.local
+
 # Logs
 logs
 *.log
