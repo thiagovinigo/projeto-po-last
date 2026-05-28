@@ -1,50 +1,6 @@
 <div class="min-h-screen bg-gray-900 text-gray-200">
 
-  @if (currentView() === 'welcome') {
-    <!-- Welcome Screen -->
-    <div class="flex flex-col items-center justify-center h-screen p-8 text-center">
-        <div class="max-w-3xl">
-            <h1 class="text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300 mb-4">
-                PO Agent AI
-            </h1>
-            <p class="text-xl text-gray-400 mb-12">
-                Sua ferramenta completa para análise, refinamento e gestão de Histórias de Usuário, impulsionada por IA.
-            </p>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- Analyze Story Card -->
-                <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-2 shadow-lg">
-                    <div class="text-blue-400 mb-4">
-                        <i class="fas fa-magic fa-3x"></i>
-                    </div>
-                    <h2 class="text-2xl font-bold mb-3 text-gray-100">Analisar História</h2>
-                    <p class="text-gray-400 mb-6">
-                        Insira uma história de usuário para receber uma análise INVEST, critérios de aceite, cenários de teste e um refinamento estratégico completo.
-                    </p>
-                    <button (click)="showAnalyzer()" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center shadow-md">
-                        <i class="fas fa-pencil-alt mr-2"></i>
-                        Começar Análise
-                    </button>
-                </div>
-
-                <!-- Import Backlog Card -->
-                <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-green-500 transition-all duration-300 transform hover:-translate-y-2 shadow-lg">
-                    <div class="text-green-400 mb-4">
-                        <i class="fas fa-file-import fa-3x"></i>
-                    </div>
-                    <h2 class="text-2xl font-bold mb-3 text-gray-100">Importar Documentos</h2>
-                    <p class="text-gray-400 mb-6">
-                        Envie documentos de requisitos, RFPs ou transcrições para a IA extrair e gerar um backlog completo de histórias de usuário refinadas.
-                    </p>
-                    <button (click)="showImporter()" class="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-all duration-300 flex items-center justify-center shadow-md">
-                        <i class="fas fa-cogs mr-2"></i>
-                        Importar e Gerar Backlog
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-  } @else if (currentView() === 'analyzer') {
+  @if (currentView() === 'analyzer') {
     <!-- Analyzer Screen (existing layout) -->
     <div class="flex flex-col p-4 sm:p-6 lg:p-8">
       <header class="w-full max-w-screen-2xl mx-auto mb-8 text-center relative">

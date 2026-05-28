@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, signal, inject, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { GeminiService } from './services/gemini.service';
 import { AnyValidationResult, HistoryItem, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult } from './models/validation.model';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -14,13 +15,15 @@ declare var marked: any; // Allow TypeScript to recognize the 'marked' library f
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule]
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   private geminiService = inject(GeminiService);
   private documentService = inject(DocumentService);
   private sanitizer = inject(DomSanitizer);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   // View State
-  currentView = signal<'welcome' | 'analyzer' | 'import'>('welcome');
+  currentView = signal<'analyzer' | 'import'>('analyzer');
 
   userStory = signal<string>('Como um novo usuário, eu quero poder me registrar em uma conta usando meu e-mail e senha, para que eu possa acessar os recursos da plataforma.');
   validationResult = signal<AnyValidationResult | null>(null);
@@ -93,31 +96,29 @@ export class AppComponent {
     this.loadHistoryFromStorage();
     this.loadBacklogsFromStorage();
   }
-  
+
+  ngOnInit(): void {
+    const projectName = this.route.snapshot.paramMap.get('name');
+    if (projectName) {
+      this.selectedBacklogName.set(decodeURIComponent(projectName));
+      this.currentView.set('analyzer');
+    }
+  }
+
   // View Management
   showAnalyzer(): void {
     this.currentView.set('analyzer');
-    this.activeSideTab.set('history'); // Default to history tab
+    this.activeSideTab.set('history');
   }
 
   showImporter(): void {
-    if (this.backlogs().length === 0) {
-        const defaultProjectName = 'Projeto Padrão';
-        this.backlogs.update(b => [...b, { projectName: defaultProjectName, items: [] }]);
-        this.selectedBacklogName.set(defaultProjectName);
-        this.saveBacklogsToStorage();
-    }
     this.currentView.set('import');
     this.importedFiles.set([]);
     this.importError.set(null);
   }
 
   goHome(): void {
-      this.currentView.set('welcome');
-      // Reset state to provide a fresh start
-      this.validationResult.set(null);
-      this.error.set(null);
-      this.userStory.set('Como um novo usuário, eu quero poder me registrar em uma conta usando meu e-mail e senha, para que eu possa acessar os recursos da plataforma.');
+    this.router.navigate(['/']);
   }
 
   // History Management
