@@ -122,7 +122,7 @@ ng serve
 
 ## Segurança — Ação Imediata
 
-> **CRÍTICO**: A API key do Groq (`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`) está hardcoded em `angular.json`. Deve ser rotacionada e movida para variável de ambiente antes do próximo commit em branch compartilhada.
+> **CRÍTICO**: A API key do Groq (`SUA_CHAVE_GROQ_AQUI`) está hardcoded em `angular.json`. Deve ser rotacionada e movida para variável de ambiente antes do próximo commit em branch compartilhada.
 
 Ação: Revogar a key no painel Groq, gerar nova, colocar em `.env` local (gitignored).
 
