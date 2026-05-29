@@ -23,7 +23,7 @@ export class AppComponent implements OnInit {
   private router = inject(Router);
 
   // View State
-  currentView = signal<'analyzer' | 'import'>('analyzer');
+  currentView = signal<'backlog' | 'analyzer' | 'import'>('backlog');
 
   userStory = signal<string>('Como um novo usuário, eu quero poder me registrar em uma conta usando meu e-mail e senha, para que eu possa acessar os recursos da plataforma.');
   validationResult = signal<AnyValidationResult | null>(null);
@@ -101,11 +101,15 @@ export class AppComponent implements OnInit {
     const projectName = this.route.snapshot.paramMap.get('name');
     if (projectName) {
       this.selectedBacklogName.set(decodeURIComponent(projectName));
-      this.currentView.set('analyzer');
+      this.currentView.set('backlog');
     }
   }
 
   // View Management
+  showBacklog(): void {
+    this.currentView.set('backlog');
+  }
+
   showAnalyzer(): void {
     this.currentView.set('analyzer');
     this.activeSideTab.set('history');
@@ -305,14 +309,15 @@ export class AppComponent implements OnInit {
       divisionAnalysis: `Visualizando a história "${story.title}" a partir do backlog do projeto "${this.selectedBacklogName()}".`,
       refinedStories: [story]
     };
-    
-    // Clear previous state and set the new one
-    this.validationResult.set(null); // set to null first to ensure change detection triggers for the object
+
+    this.validationResult.set(null);
     this.validationResult.set(result);
     this.error.set(null);
     this.isLoading.set(false);
     this.activeValidation.set(null);
-    this.storyAddedToBacklog.set({}); // Reset 'added' status
+    this.storyAddedToBacklog.set({});
+    this.currentView.set('analyzer');
+    this.activeSideTab.set('backlog');
   }
   
   // UI Actions
@@ -600,9 +605,7 @@ ${story.testScenarios.unit}
       );
 
       if (allRefinedStories.length > 0) {
-        // Navigate to the backlog tab after successful import
-        this.currentView.set('analyzer');
-        this.activeSideTab.set('backlog');
+        this.currentView.set('backlog');
       } else {
         this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos.');
       }

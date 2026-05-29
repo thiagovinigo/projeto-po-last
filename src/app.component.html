@@ -1,12 +1,149 @@
 <div class="min-h-screen bg-gray-900 text-gray-200">
 
+  <!-- ===================== BACKLOG / PROJECT AREA ===================== -->
+  @if (currentView() === 'backlog') {
+    <div class="flex flex-col min-h-screen">
+
+      <!-- Top Nav -->
+      <header class="bg-gray-800/90 backdrop-blur border-b border-gray-700 px-6 py-4 sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <button (click)="goHome()"
+              class="text-gray-400 hover:text-white transition flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-gray-700/60">
+              <i class="fas fa-arrow-left text-xs"></i>
+              <span>Início</span>
+            </button>
+            <div class="w-px h-5 bg-gray-700"></div>
+            <h1 class="text-base font-bold text-white truncate">{{ selectedBacklogName() }}</h1>
+          </div>
+          <div class="flex items-center gap-2">
+            <button (click)="showAnalyzer()"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold text-white transition shadow">
+              <i class="fas fa-magic text-xs"></i>
+              <span>Analisar História</span>
+            </button>
+            <button (click)="showImporter()"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm font-semibold text-white transition shadow">
+              <i class="fas fa-file-import text-xs"></i>
+              <span>Importar Arquivos</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Backlog Content -->
+      <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
+
+        @if (groupedBacklog(); as grouped) {
+          <div class="space-y-6">
+            @for (epic of objectKeys(grouped); track epic) {
+              <div class="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg">
+
+                <!-- Epic header -->
+                <div class="flex items-center gap-3 px-5 py-4 bg-orange-950/40 border-b border-orange-800/30">
+                  <i class="fas fa-layer-group text-orange-400"></i>
+                  <span class="text-sm font-bold text-orange-300 uppercase tracking-wider">Épico</span>
+                  <span class="text-base font-semibold text-orange-200">{{ epic }}</span>
+                </div>
+
+                <div class="p-4 space-y-3">
+                  @for (feature of objectKeys(grouped[epic]); track feature) {
+                    <!-- Feature group -->
+                    <div class="border border-purple-800/30 rounded-xl bg-purple-950/20 overflow-hidden">
+                      <div class="flex items-center gap-2 px-4 py-3 bg-purple-900/20 border-b border-purple-800/20">
+                        <i class="fas fa-puzzle-piece text-purple-400 text-xs"></i>
+                        <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Feature</span>
+                        <span class="text-sm font-semibold text-purple-200">{{ feature }}</span>
+                        <span class="ml-auto text-xs text-gray-500 font-medium">
+                          {{ grouped[epic][feature].length }} {{ grouped[epic][feature].length === 1 ? 'história' : 'histórias' }}
+                        </span>
+                      </div>
+
+                      <!-- Stories -->
+                      <div class="divide-y divide-gray-700/40">
+                        @for (story of grouped[epic][feature]; track story.id) {
+                          <div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-700/25 transition group">
+                            <div class="flex items-start gap-2 flex-1 min-w-0">
+                              <i class="fas fa-bookmark text-cyan-600 text-xs mt-1 shrink-0"></i>
+                              <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-200 leading-snug">{{ story.title }}</p>
+                                @if (story.storyEstimate) {
+                                  <span class="inline-flex items-center gap-1 text-xs text-yellow-300 mt-1">
+                                    <i class="fas fa-stopwatch text-yellow-400 text-xs"></i>
+                                    {{ story.storyEstimate }}
+                                  </span>
+                                }
+                              </div>
+                            </div>
+                            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
+                              <button (click)="viewStoryFromBacklog(story)" title="Ver detalhes"
+                                class="p-1.5 rounded-md text-gray-400 hover:text-blue-300 hover:bg-blue-900/30 transition">
+                                <i class="fas fa-eye text-xs"></i>
+                              </button>
+                              <button (click)="startEditing(story)" title="Editar"
+                                class="p-1.5 rounded-md text-gray-400 hover:text-cyan-300 hover:bg-cyan-900/30 transition">
+                                <i class="fas fa-pen text-xs"></i>
+                              </button>
+                              <button (click)="moveStory(story.id, 'up')" title="Mover para cima"
+                                class="p-1.5 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-600/50 transition">
+                                <i class="fas fa-arrow-up text-xs"></i>
+                              </button>
+                              <button (click)="moveStory(story.id, 'down')" title="Mover para baixo"
+                                class="p-1.5 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-600/50 transition">
+                                <i class="fas fa-arrow-down text-xs"></i>
+                              </button>
+                              <button (click)="deleteStory(story.id)" title="Excluir"
+                                class="p-1.5 rounded-md text-gray-400 hover:text-red-300 hover:bg-red-900/30 transition">
+                                <i class="fas fa-trash text-xs"></i>
+                              </button>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+              </div>
+            }
+          </div>
+        } @else {
+          <!-- Empty state -->
+          <div class="flex flex-col items-center justify-center py-28 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mb-5">
+              <i class="fas fa-stream text-gray-500 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-300 mb-2">Backlog vazio</h3>
+            <p class="text-gray-500 text-sm mb-8 max-w-sm leading-relaxed">
+              Analise uma história de usuário ou importe documentos para popular o backlog automaticamente.
+            </p>
+            <div class="flex gap-3">
+              <button (click)="showAnalyzer()"
+                class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold text-white transition">
+                <i class="fas fa-magic"></i>
+                <span>Analisar História</span>
+              </button>
+              <button (click)="showImporter()"
+                class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm font-semibold text-white transition">
+                <i class="fas fa-file-import"></i>
+                <span>Importar Arquivos</span>
+              </button>
+            </div>
+          </div>
+        }
+
+      </main>
+    </div>
+  }
+
+  <!-- ===================== ANALYZER ===================== -->
   @if (currentView() === 'analyzer') {
     <!-- Analyzer Screen (existing layout) -->
     <div class="flex flex-col p-4 sm:p-6 lg:p-8">
       <header class="w-full max-w-screen-2xl mx-auto mb-8 text-center relative">
-        <button (click)="goHome()" class="absolute left-0 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400 hover:text-white transition-colors px-4 py-2 rounded-lg hover:bg-gray-700/50 flex items-center gap-2">
+        <button (click)="showBacklog()" class="absolute left-0 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400 hover:text-white transition-colors px-4 py-2 rounded-lg hover:bg-gray-700/50 flex items-center gap-2">
             <i class="fas fa-arrow-left"></i>
-            <span>Início</span>
+            <span>Backlog</span>
         </button>
         <h1 class="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">
           IA Validadora de Histórias de Usuário
@@ -670,94 +807,6 @@
         </div>
       </main>
       
-      <!-- Edit Story Modal -->
-      @if (editingStory(); as story) {
-        <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" (click)="cancelEditing()">
-            <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-600" (click)="$event.stopPropagation()">
-                <header class="p-5 border-b border-gray-700 flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-gray-100">Editar História de Usuário</h2>
-                    <button (click)="cancelEditing()" class="text-gray-400 hover:text-white">&times;</button>
-                </header>
-                <main class="p-6 overflow-y-auto space-y-6">
-                    <!-- Basic Info -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-400 mb-1">Título</label>
-                            <input type="text" [(ngModel)]="story.title" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
-                        </div>
-                         <div>
-                            <label class="block text-sm font-medium text-gray-400 mb-1">Estimativa (ex: 8h)</label>
-                            <input type="text" [(ngModel)]="story.storyEstimate" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-400 mb-1">Sugestão de Épico</label>
-                            <input type="text" [(ngModel)]="story.epicSuggestion" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-400 mb-1">Sugestão de Feature</label>
-                            <input type="text" [(ngModel)]="story.featureSuggestion" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm">
-                        </div>
-                    </div>
-
-                    <!-- Text Areas -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-400 mb-1">Visão do Usuário</label>
-                        <textarea [(ngModel)]="story.userPersona" rows="3" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm"></textarea>
-                    </div>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-400 mb-1">Narrativa de Negócio</label>
-                        <textarea [(ngModel)]="story.businessNarrative" rows="4" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-400 mb-1">Critérios de Aceite (BDD)</label>
-                        <textarea [(ngModel)]="story.acceptanceCriteria" rows="8" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm font-mono"></textarea>
-                    </div>
-
-                    <!-- Development Tasks -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-200 mb-2">Tarefas de Desenvolvimento</h3>
-                        <div class="space-y-3">
-                            @for (task of story.developmentTasks; track task.name) {
-                                <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
-                                    <input type="text" [(ngModel)]="task.name" placeholder="Nome da tarefa" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm font-semibold mb-2">
-                                    <textarea [(ngModel)]="task.description" rows="2" placeholder="Descrição" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm mb-2"></textarea>
-                                    <div class="flex gap-2">
-                                        <input type="text" [(ngModel)]="task.responsibility" placeholder="Responsabilidade" class="w-1/2 bg-gray-700 border-gray-600 rounded-md p-2 text-sm">
-                                        <input type="text" [(ngModel)]="task.estimate" placeholder="Estimativa" class="w-1/2 bg-gray-700 border-gray-600 rounded-md p-2 text-sm">
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                     <!-- Risk Analysis -->
-                    @if(story.riskAnalysis) {
-                      <div>
-                          <h3 class="text-lg font-semibold text-gray-200 mb-2">Análise de Riscos</h3>
-                          <div class="space-y-3">
-                              @for (risk of story.riskAnalysis; track $index) {
-                                  <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
-                                      <div class="flex gap-2 mb-2">
-                                          <select [(ngModel)]="risk.type" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm">
-                                              <option value="Técnico">Técnico</option>
-                                              <option value="Negócio">Negócio</option>
-                                              <option value="Usabilidade">Usabilidade</option>
-                                          </select>
-                                      </div>
-                                      <textarea [(ngModel)]="risk.description" rows="2" placeholder="Descrição do Risco" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm mb-2"></textarea>
-                                      <textarea [(ngModel)]="risk.mitigationSuggestion" rows="2" placeholder="Sugestão de Mitigação" class="w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm"></textarea>
-                                  </div>
-                              }
-                          </div>
-                      </div>
-                    }
-                </main>
-                <footer class="p-5 border-t border-gray-700 flex justify-end items-center space-x-4">
-                    <button (click)="cancelEditing()" class="px-6 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold transition-colors">Cancelar</button>
-                    <button (click)="saveEditing()" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors">Salvar Alterações</button>
-                </footer>
-            </div>
-        </div>
-      }
     </div>
   } @else if (currentView() === 'import') {
     <!-- Import Screen -->
@@ -818,7 +867,7 @@
             }
 
             <div class="flex items-center gap-4 pt-4">
-                 <button (click)="goHome()" class="w-1/3 bg-gray-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center justify-center shadow-md">
+                 <button (click)="showBacklog()" class="w-1/3 bg-gray-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center justify-center shadow-md">
                     <i class="fas fa-arrow-left mr-2"></i>
                     <span>Voltar</span>
                 </button>
@@ -838,4 +887,86 @@
       </div>
     </div>
   }
+
+  <!-- ===================== EDIT STORY MODAL (global) ===================== -->
+  @if (editingStory(); as story) {
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" (click)="cancelEditing()">
+      <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-600" (click)="$event.stopPropagation()">
+        <header class="p-5 border-b border-gray-700 flex justify-between items-center">
+          <h2 class="text-2xl font-bold text-gray-100">Editar História de Usuário</h2>
+          <button (click)="cancelEditing()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+        </header>
+        <main class="p-6 overflow-y-auto space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-400 mb-1">Título</label>
+              <input type="text" [(ngModel)]="story.title" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm text-gray-200">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400 mb-1">Estimativa (ex: 8h)</label>
+              <input type="text" [(ngModel)]="story.storyEstimate" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm text-gray-200">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400 mb-1">Sugestão de Épico</label>
+              <input type="text" [(ngModel)]="story.epicSuggestion" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm text-gray-200">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400 mb-1">Sugestão de Feature</label>
+              <input type="text" [(ngModel)]="story.featureSuggestion" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm text-gray-200">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Visão do Usuário</label>
+            <textarea [(ngModel)]="story.userPersona" rows="3" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm text-gray-200"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Narrativa de Negócio</label>
+            <textarea [(ngModel)]="story.businessNarrative" rows="4" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm text-gray-200"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Critérios de Aceite (BDD)</label>
+            <textarea [(ngModel)]="story.acceptanceCriteria" rows="8" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-sm text-gray-200 font-mono"></textarea>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-200 mb-2">Tarefas de Desenvolvimento</h3>
+            <div class="space-y-3">
+              @for (task of story.developmentTasks; track task.name) {
+                <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                  <input type="text" [(ngModel)]="task.name" placeholder="Nome da tarefa" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm font-semibold mb-2 text-gray-200">
+                  <textarea [(ngModel)]="task.description" rows="2" placeholder="Descrição" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm mb-2 text-gray-200"></textarea>
+                  <div class="flex gap-2">
+                    <input type="text" [(ngModel)]="task.responsibility" placeholder="Responsabilidade" class="w-1/2 bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-gray-200">
+                    <input type="text" [(ngModel)]="task.estimate" placeholder="Estimativa" class="w-1/2 bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-gray-200">
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+          @if (story.riskAnalysis) {
+            <div>
+              <h3 class="text-lg font-semibold text-gray-200 mb-2">Análise de Riscos</h3>
+              <div class="space-y-3">
+                @for (risk of story.riskAnalysis; track $index) {
+                  <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <select [(ngModel)]="risk.type" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-gray-200 mb-2">
+                      <option value="Técnico">Técnico</option>
+                      <option value="Negócio">Negócio</option>
+                      <option value="Usabilidade">Usabilidade</option>
+                    </select>
+                    <textarea [(ngModel)]="risk.description" rows="2" placeholder="Descrição do Risco" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm mb-2 text-gray-200"></textarea>
+                    <textarea [(ngModel)]="risk.mitigationSuggestion" rows="2" placeholder="Sugestão de Mitigação" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-gray-200"></textarea>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </main>
+        <footer class="p-5 border-t border-gray-700 flex justify-end items-center gap-3">
+          <button (click)="cancelEditing()" class="px-6 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold transition-colors">Cancelar</button>
+          <button (click)="saveEditing()" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors">Salvar Alterações</button>
+        </footer>
+      </div>
+    </div>
+  }
+
 </div>
