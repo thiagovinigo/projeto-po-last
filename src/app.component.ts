@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GeminiService } from './services/gemini.service';
-import { AnyValidationResult, HistoryItem, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult, ProjectInfo } from './models/validation.model';
+import { AnyValidationResult, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult, ProjectInfo } from './models/validation.model';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { DocumentService } from './services/document.service';
 import { DocumentExportService } from './services/document-export.service';
@@ -35,14 +35,10 @@ export class AppComponent implements OnInit {
   activeValidation = signal<'strategic' | null>(null);
   error = signal<string | null>(null);
 
-  // History State
-  history = signal<HistoryItem[]>([]);
-  
   // UI State
   copiedStoryIndex = signal<number | null>(null);
   activeTabs = signal<Record<number, 'bdd' | 'cypress' | 'edge' | 'docs'>>({});
   storyAddedToBacklog = signal<Record<number, boolean>>({});
-  activeSideTab = signal<'history' | 'backlog'>('history');
   
   // Alternative formats state
   isGeneratingAltTests = signal<Record<number, boolean>>({});
@@ -56,8 +52,6 @@ export class AppComponent implements OnInit {
   // Backlog State
   backlogs = signal<Backlog[]>([]);
   selectedBacklogName = signal<string | null>(null);
-  showCreateBacklogInput = signal<boolean>(false);
-  newProjectName = signal<string>('');
   editingStory = signal<BacklogItem | null>(null);
 
   // Import State
@@ -109,7 +103,6 @@ export class AppComponent implements OnInit {
   objectKeys = Object.keys;
 
   constructor() {
-    this.loadHistoryFromStorage();
     this.loadBacklogsFromStorage();
   }
 
@@ -128,7 +121,6 @@ export class AppComponent implements OnInit {
 
   showAnalyzer(): void {
     this.currentView.set('analyzer');
-    this.activeSideTab.set('history');
   }
 
   showImporter(): void {
@@ -139,55 +131,6 @@ export class AppComponent implements OnInit {
 
   goHome(): void {
     this.router.navigate(['/']);
-  }
-
-  // History Management
-  private loadHistoryFromStorage(): void {
-    if (typeof localStorage !== 'undefined') {
-      const storedHistory = localStorage.getItem('userStoryHistory');
-      if (storedHistory) {
-        this.history.set(JSON.parse(storedHistory));
-      }
-    }
-  }
-
-  private addToHistory(userStory: string, result: AnyValidationResult): void {
-    const newItem: HistoryItem = {
-      id: Date.now(),
-      userStory,
-      result,
-      timestamp: Date.now(),
-      model: result.model
-    };
-
-    if (result.validationType === 'strategic' && result.refinedStories && result.refinedStories.length > 0) {
-        newItem.epicSuggestion = result.refinedStories[0].epicSuggestion;
-        newItem.featureSuggestion = result.refinedStories[0].featureSuggestion;
-        
-        const totalHours = result.refinedStories.reduce((acc, story) => {
-            const hours = parseFloat(story.storyEstimate.replace('h', ''));
-            return acc + (isNaN(hours) ? 0 : hours);
-        }, 0);
-        newItem.storyEstimate = `${totalHours}h`;
-    }
-
-    this.history.update(currentHistory => [newItem, ...currentHistory].slice(0, 50)); 
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('userStoryHistory', JSON.stringify(this.history()));
-    }
-  }
-
-  loadFromHistory(item: HistoryItem): void {
-    this.userStory.set(item.userStory);
-    this.validationResult.set(item.result);
-    this.error.set(null);
-  }
-
-  clearHistory(): void {
-    this.history.set([]);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('userStoryHistory');
-    }
   }
 
   // Backlog Management
@@ -210,17 +153,6 @@ export class AppComponent implements OnInit {
     }
   }
 
-  createBacklog(): void {
-    const name = this.newProjectName().trim();
-    if (name && !this.backlogs().some(b => b.projectName === name)) {
-      this.backlogs.update(b => [...b, { projectName: name, items: [] }]);
-      this.selectedBacklogName.set(name);
-      this.saveBacklogsToStorage();
-      this.newProjectName.set('');
-      this.showCreateBacklogInput.set(false);
-    }
-  }
-
   addStoryToBacklog(storyIndex: number): void {
     const active = this.activeBacklog();
     const result = this.validationResult();
@@ -231,7 +163,7 @@ export class AppComponent implements OnInit {
 
     const newBacklogItem: BacklogItem = {
       ...story,
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       order: active.items.length
     };
     
@@ -333,7 +265,6 @@ export class AppComponent implements OnInit {
     this.activeValidation.set(null);
     this.storyAddedToBacklog.set({});
     this.currentView.set('analyzer');
-    this.activeSideTab.set('backlog');
   }
   
   // UI Actions
@@ -462,7 +393,9 @@ ${story.testScenarios.unit}
     try {
       const result = await this.geminiService.refineUserStoryStrategic(this.userStory());
       this.validationResult.set(result);
-      this.addToHistory(this.userStory(), result);
+      if (result.validationType === 'strategic' && result.refinedStories) {
+          result.refinedStories.forEach((_, idx) => this.addStoryToBacklog(idx));
+      }
     } catch (err) {
       console.error(`Error during strategic validation:`, err);
       this.error.set('Falha ao obter a validação da IA. Por favor, verifique sua chave de API e tente novamente.');
@@ -557,10 +490,6 @@ ${story.testScenarios.unit}
     }));
   }
   
-  setActiveSideTab(tab: 'history' | 'backlog'): void {
-      this.activeSideTab.set(tab);
-  }
-
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
@@ -688,25 +617,25 @@ ${story.testScenarios.unit}
 
   // Document Generation
   async generatePrd(): Promise<void> {
-    const story = this.firstValidatedStory();
-    const projectName = this.selectedBacklogName();
-    if (!story || !projectName) return;
+    const active = this.activeBacklog();
+    if (!active || active.items.length === 0) return;
+    const projectName = active.projectName;
 
     this.isGeneratingArtifact.set('prd');
-    const draft = this.documentExportService.buildPrdDraft(story, projectName, this.activeProjectInfo());
+    const draft = this.documentExportService.buildPrdDraft(active.items, projectName, active.info ?? null);
 
     try {
       const polished = await this.geminiService.generateProjectDocument('prd', draft);
       this.generatedDoc.set({
         kind: 'prd',
-        title: `PRD — ${story.title}`,
+        title: `PRD — ${projectName}`,
         filename: `prd_${projectName.replace(/\s+/g, '_')}.md`,
         markdown: polished
       });
     } catch {
       this.generatedDoc.set({
         kind: 'prd',
-        title: `PRD — ${story.title}`,
+        title: `PRD — ${projectName}`,
         filename: `prd_${projectName.replace(/\s+/g, '_')}.md`,
         markdown: draft
       });
@@ -716,25 +645,25 @@ ${story.testScenarios.unit}
   }
 
   async generateSpec(): Promise<void> {
-    const story = this.firstValidatedStory();
-    const projectName = this.selectedBacklogName();
-    if (!story || !projectName) return;
+    const active = this.activeBacklog();
+    if (!active || active.items.length === 0) return;
+    const projectName = active.projectName;
 
     this.isGeneratingArtifact.set('spec');
-    const draft = this.documentExportService.buildSpecDraft(story, projectName);
+    const draft = this.documentExportService.buildSpecDraft(active.items, projectName);
 
     try {
       const polished = await this.geminiService.generateProjectDocument('spec', draft);
       this.generatedDoc.set({
         kind: 'spec',
-        title: `Spec — ${story.title}`,
+        title: `Spec — ${projectName}`,
         filename: `spec_${projectName.replace(/\s+/g, '_')}.md`,
         markdown: polished
       });
     } catch {
       this.generatedDoc.set({
         kind: 'spec',
-        title: `Spec — ${story.title}`,
+        title: `Spec — ${projectName}`,
         filename: `spec_${projectName.replace(/\s+/g, '_')}.md`,
         markdown: draft
       });
