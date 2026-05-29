@@ -3,9 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GeminiService } from './services/gemini.service';
-import { AnyValidationResult, HistoryItem, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult } from './models/validation.model';
+import { AnyValidationResult, HistoryItem, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult, ProjectInfo } from './models/validation.model';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { DocumentService } from './services/document.service';
+import { DocumentExportService } from './services/document-export.service';
+import { ProjectInfoPanelComponent } from './app/features/project-info/project-info-panel.component';
+import { DocumentViewerComponent, GeneratedDocument } from './app/features/document-viewer/document-viewer.component';
 
 declare var marked: any; // Allow TypeScript to recognize the 'marked' library from the CDN
 
@@ -13,11 +16,12 @@ declare var marked: any; // Allow TypeScript to recognize the 'marked' library f
   selector: 'app-root',
   templateUrl: 'app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule, ProjectInfoPanelComponent, DocumentViewerComponent]
 })
 export class AppComponent implements OnInit {
   private geminiService = inject(GeminiService);
   private documentService = inject(DocumentService);
+  private documentExportService = inject(DocumentExportService);
   private sanitizer = inject(DomSanitizer);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -60,7 +64,11 @@ export class AppComponent implements OnInit {
   importedFiles = signal<File[]>([]);
   isImporting = signal<boolean>(false);
   importError = signal<string | null>(null);
-  
+
+  // Document Generation State
+  generatedDoc = signal<GeneratedDocument | null>(null);
+  isGeneratingArtifact = signal<'prd' | 'spec' | null>(null);
+
   activeBacklog = computed(() => {
     const selectedName = this.selectedBacklogName();
     if (!selectedName) return null;
@@ -88,6 +96,14 @@ export class AppComponent implements OnInit {
     }, {} as { [epic: string]: { [feature: string]: BacklogItem[] } });
 
     return grouped;
+  });
+
+  activeProjectInfo = computed<ProjectInfo | null>(() => this.activeBacklog()?.info ?? null);
+
+  firstValidatedStory = computed<RefinedStory | null>(() => {
+    const result = this.validationResult();
+    if (!result || result.validationType !== 'strategic') return null;
+    return result.refinedStories?.[0] ?? null;
   });
 
   objectKeys = Object.keys;
@@ -656,6 +672,85 @@ ${story.testScenarios.unit}
     });
 
     this.saveBacklogsToStorage();
+  }
+
+  // Project Info Management
+  saveProjectInfo(info: ProjectInfo): void {
+    const active = this.activeBacklog();
+    if (!active) return;
+    this.backlogs.update(backlogs =>
+      backlogs.map(b =>
+        b.projectName === active.projectName ? { ...b, info } : b
+      )
+    );
+    this.saveBacklogsToStorage();
+  }
+
+  // Document Generation
+  async generatePrd(): Promise<void> {
+    const story = this.firstValidatedStory();
+    const projectName = this.selectedBacklogName();
+    if (!story || !projectName) return;
+
+    this.isGeneratingArtifact.set('prd');
+    const draft = this.documentExportService.buildPrdDraft(story, projectName, this.activeProjectInfo());
+
+    try {
+      const polished = await this.geminiService.generateProjectDocument('prd', draft);
+      this.generatedDoc.set({
+        kind: 'prd',
+        title: `PRD — ${story.title}`,
+        filename: `prd_${projectName.replace(/\s+/g, '_')}.md`,
+        markdown: polished
+      });
+    } catch {
+      this.generatedDoc.set({
+        kind: 'prd',
+        title: `PRD — ${story.title}`,
+        filename: `prd_${projectName.replace(/\s+/g, '_')}.md`,
+        markdown: draft
+      });
+    } finally {
+      this.isGeneratingArtifact.set(null);
+    }
+  }
+
+  async generateSpec(): Promise<void> {
+    const story = this.firstValidatedStory();
+    const projectName = this.selectedBacklogName();
+    if (!story || !projectName) return;
+
+    this.isGeneratingArtifact.set('spec');
+    const draft = this.documentExportService.buildSpecDraft(story, projectName);
+
+    try {
+      const polished = await this.geminiService.generateProjectDocument('spec', draft);
+      this.generatedDoc.set({
+        kind: 'spec',
+        title: `Spec — ${story.title}`,
+        filename: `spec_${projectName.replace(/\s+/g, '_')}.md`,
+        markdown: polished
+      });
+    } catch {
+      this.generatedDoc.set({
+        kind: 'spec',
+        title: `Spec — ${story.title}`,
+        filename: `spec_${projectName.replace(/\s+/g, '_')}.md`,
+        markdown: draft
+      });
+    } finally {
+      this.isGeneratingArtifact.set(null);
+    }
+  }
+
+  downloadGeneratedDoc(): void {
+    const doc = this.generatedDoc();
+    if (!doc) return;
+    this.documentExportService.downloadMarkdown(doc.filename, doc.markdown);
+  }
+
+  closeGeneratedDoc(): void {
+    this.generatedDoc.set(null);
   }
 
   getProgressBarColor(): string {

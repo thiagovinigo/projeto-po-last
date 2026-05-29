@@ -1,0 +1,47 @@
+@if (doc()) {
+  <!-- Backdrop -->
+  <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
+    (click)="close.emit()">
+
+    <!-- Modal panel -->
+    <div class="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-4xl my-8"
+      (click)="$event.stopPropagation()">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-800/60 rounded-t-2xl">
+        <div class="flex items-center gap-3">
+          <i class="fas fa-file-alt text-indigo-400"></i>
+          <div>
+            <h2 class="text-base font-bold text-white">{{ doc()?.title }}</h2>
+            <span class="text-xs text-gray-500">{{ doc()?.filename }}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button (click)="download.emit()"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold text-white transition">
+            <i class="fas fa-download text-xs"></i>
+            <span>Baixar .md</span>
+          </button>
+          <button (click)="close.emit()"
+            class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="px-8 py-6 prose prose-invert prose-sm max-w-none
+        prose-headings:text-white prose-headings:font-bold
+        prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
+        prose-p:text-gray-300 prose-li:text-gray-300
+        prose-code:text-green-300 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded
+        prose-pre:bg-gray-800 prose-pre:border prose-pre:border-gray-700
+        prose-strong:text-gray-100 prose-table:text-sm
+        prose-th:text-gray-300 prose-td:text-gray-400
+        prose-a:text-indigo-400"
+        [innerHTML]="renderedHtml()">
+      </div>
+
+    </div>
+  </div>
+}
