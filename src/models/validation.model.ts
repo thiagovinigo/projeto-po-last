@@ -94,6 +94,32 @@ export interface HistoryItem {
   model?: string;
 }
 
+// -- Project Info Model --
+
+export interface ProjectInfo {
+  description: string;
+  objective: string;
+  targetUsers: string;
+  stakeholders: string;
+  techStack: string;
+  constraints: string;
+  notes: string;
+  updatedAt: number;
+}
+
+export function createEmptyProjectInfo(): ProjectInfo {
+  return {
+    description: '',
+    objective: '',
+    targetUsers: '',
+    stakeholders: '',
+    techStack: '',
+    constraints: '',
+    notes: '',
+    updatedAt: Date.now()
+  };
+}
+
 // -- Backlog Models --
 
 export interface BacklogItem extends RefinedStory {
@@ -104,6 +130,7 @@ export interface BacklogItem extends RefinedStory {
 export interface Backlog {
   projectName: string;
   items: BacklogItem[];
+  info?: ProjectInfo;
 }
 
 // -- Import Models --

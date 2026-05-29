@@ -1,0 +1,155 @@
+<div class="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg mb-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between px-5 py-4 bg-indigo-950/40 border-b border-indigo-800/30">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-clipboard-list text-indigo-400"></i>
+      <span class="text-sm font-bold text-indigo-300 uppercase tracking-wider">Informações do Projeto</span>
+    </div>
+    @if (!isEditing()) {
+      <button (click)="startEdit()"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-700/40 hover:bg-indigo-600/60 text-indigo-300 hover:text-indigo-200 text-xs font-medium transition">
+        <i class="fas fa-pen text-xs"></i>
+        <span>{{ hasContent() ? 'Editar' : 'Preencher' }}</span>
+      </button>
+    }
+  </div>
+
+  <!-- View mode -->
+  @if (!isEditing()) {
+    <div class="p-5">
+      @if (hasContent()) {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          @if (info()?.description) {
+            <div>
+              <span class="text-gray-500 text-xs uppercase tracking-wide">Descrição</span>
+              <p class="text-gray-300 mt-1">{{ info()?.description }}</p>
+            </div>
+          }
+          @if (info()?.objective) {
+            <div>
+              <span class="text-gray-500 text-xs uppercase tracking-wide">Objetivo</span>
+              <p class="text-gray-300 mt-1">{{ info()?.objective }}</p>
+            </div>
+          }
+          @if (info()?.targetUsers) {
+            <div>
+              <span class="text-gray-500 text-xs uppercase tracking-wide">Usuários-Alvo</span>
+              <p class="text-gray-300 mt-1">{{ info()?.targetUsers }}</p>
+            </div>
+          }
+          @if (info()?.stakeholders) {
+            <div>
+              <span class="text-gray-500 text-xs uppercase tracking-wide">Stakeholders</span>
+              <p class="text-gray-300 mt-1">{{ info()?.stakeholders }}</p>
+            </div>
+          }
+          @if (info()?.techStack) {
+            <div>
+              <span class="text-gray-500 text-xs uppercase tracking-wide">Tech Stack</span>
+              <p class="text-gray-300 mt-1">{{ info()?.techStack }}</p>
+            </div>
+          }
+          @if (info()?.constraints) {
+            <div>
+              <span class="text-gray-500 text-xs uppercase tracking-wide">Restrições</span>
+              <p class="text-gray-300 mt-1">{{ info()?.constraints }}</p>
+            </div>
+          }
+          @if (info()?.notes) {
+            <div class="md:col-span-2">
+              <span class="text-gray-500 text-xs uppercase tracking-wide">Notas</span>
+              <p class="text-gray-300 mt-1">{{ info()?.notes }}</p>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-gray-500 text-sm italic">Nenhuma informação do projeto preenchida. Clique em "Preencher" para adicionar contexto ao projeto.</p>
+      }
+    </div>
+  }
+
+  <!-- Edit mode -->
+  @if (isEditing()) {
+    <div class="p-5 space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-400 uppercase tracking-wide">Descrição</label>
+          <textarea rows="2"
+            [value]="editingCopy().description"
+            (input)="updateField('description', $any($event.target).value)"
+            placeholder="Breve descrição do projeto..."
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-400 uppercase tracking-wide">Objetivo</label>
+          <textarea rows="2"
+            [value]="editingCopy().objective"
+            (input)="updateField('objective', $any($event.target).value)"
+            placeholder="Objetivo principal do projeto..."
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-400 uppercase tracking-wide">Usuários-Alvo</label>
+          <input type="text"
+            [value]="editingCopy().targetUsers"
+            (input)="updateField('targetUsers', $any($event.target).value)"
+            placeholder="Ex: clientes B2B, equipes de vendas..."
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-400 uppercase tracking-wide">Stakeholders</label>
+          <input type="text"
+            [value]="editingCopy().stakeholders"
+            (input)="updateField('stakeholders', $any($event.target).value)"
+            placeholder="Ex: CEO, time de engenharia, clientes..."
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-400 uppercase tracking-wide">Tech Stack</label>
+          <input type="text"
+            [value]="editingCopy().techStack"
+            (input)="updateField('techStack', $any($event.target).value)"
+            placeholder="Ex: Angular, Node.js, PostgreSQL..."
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-400 uppercase tracking-wide">Restrições</label>
+          <input type="text"
+            [value]="editingCopy().constraints"
+            (input)="updateField('constraints', $any($event.target).value)"
+            placeholder="Ex: LGPD, prazo fixo, orçamento..."
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+
+        <div class="space-y-1 md:col-span-2">
+          <label class="text-xs font-medium text-gray-400 uppercase tracking-wide">Notas Adicionais</label>
+          <textarea rows="2"
+            [value]="editingCopy().notes"
+            (input)="updateField('notes', $any($event.target).value)"
+            placeholder="Contexto extra, decisões tomadas, links úteis..."
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+        </div>
+
+      </div>
+
+      <div class="flex justify-end gap-2 pt-1">
+        <button (click)="cancelEdit()"
+          class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition">
+          Cancelar
+        </button>
+        <button (click)="confirmSave()"
+          class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold text-white transition">
+          Salvar
+        </button>
+      </div>
+    </div>
+  }
+
+</div>

@@ -3,6 +3,8 @@ import Groq from 'groq-sdk';
 import { StrategicRefinementResult, TestScenarios, RefinedStory, ExtractedBacklogItems } from '../models/validation.model';
 import { environment } from '../environments/environment';
 
+export type DocumentKind = 'prd' | 'spec';
+
 const MODEL = 'llama-3.3-70b-versatile';
 
 @Injectable({
@@ -280,6 +282,35 @@ export class GeminiService {
     } catch (error) {
       console.error('Error calling Groq API for technical artifact generation:', error);
       throw new Error('Falha ao gerar o artefato técnico.');
+    }
+  }
+
+  async generateProjectDocument(kind: DocumentKind, draftMarkdown: string): Promise<string> {
+    const label = kind === 'prd' ? 'PRD (Product Requirements Document)' : 'Especificação Técnica (spec.md)';
+    const systemInstruction = `
+      Você é um Product Manager sênior e redator técnico especializado em documentação de produto.
+      Você receberá um rascunho de ${label} em markdown e deve aprimorá-lo:
+      - Melhore a clareza, coesão e estrutura narrativa
+      - Mantenha todos os dados técnicos exatamente como estão (critérios, estimativas, código)
+      - Use linguagem profissional em português
+      - Mantenha a mesma estrutura de seções e cabeçalhos
+      - Retorne APENAS o conteúdo markdown aprimorado, sem explicações adicionais
+    `;
+    const prompt = `Aprimore o seguinte rascunho de ${label}:\n\n${draftMarkdown}`;
+
+    try {
+      const response = await this.groq.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3
+      });
+      return response.choices[0].message.content?.trim() ?? draftMarkdown;
+    } catch (error) {
+      console.error(`Error generating ${kind} document via AI:`, error);
+      return draftMarkdown;
     }
   }
 
