@@ -1,40 +1,49 @@
-<div class="min-h-screen bg-gray-950 text-white">
+<div class="min-h-screen text-white" style="background-color:var(--bg-base)">
 
   <!-- Header -->
-  <header class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+  <header class="glass px-6 py-4 flex items-center justify-between sticky top-0 z-10"
+    style="border-radius:0; border-left:none; border-right:none; border-top:none;">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-        <span class="text-sm font-bold">PO</span>
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+        style="background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));box-shadow:var(--glow-blue)">
+        <span class="text-sm font-bold" style="font-family:var(--font-display)">PO</span>
       </div>
-      <h1 class="text-lg font-semibold">PO Agent</h1>
+      <div>
+        <h1 class="text-base font-bold leading-tight" style="font-family:var(--font-display)">PO Agent</h1>
+        <span class="text-xs" style="color:var(--accent-blue)">AI Product Manager</span>
+      </div>
     </div>
     <div class="flex items-center gap-4">
       <span class="text-sm text-gray-400">{{ userEmail() }}</span>
-      <button (click)="signOut()" class="text-sm text-gray-400 hover:text-white transition">Sair</button>
+      <button (click)="signOut()"
+        class="text-xs px-3 py-1.5 rounded-lg transition"
+        style="border:1px solid var(--border-glass); color:var(--accent-rose)"
+        onmouseenter="this.style.borderColor='var(--accent-rose)'"
+        onmouseleave="this.style.borderColor='var(--border-glass)'">
+        Sair
+      </button>
     </div>
   </header>
 
   <main class="max-w-4xl mx-auto px-6 py-10">
 
     <!-- Título -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center justify-between mb-8 fade-up">
       <div>
-        <h2 class="text-2xl font-bold">Meus Projetos</h2>
-        <p class="text-gray-400 text-sm mt-1">Cada projeto tem seu próprio backlog de histórias</p>
+        <h2 class="text-2xl font-bold" style="font-family:var(--font-display)">Meus Projetos</h2>
+        <p class="text-sm mt-1" style="color:#6b7280">Cada projeto tem seu próprio backlog de histórias</p>
       </div>
       @if (hasProjects() && !showCreateInput()) {
-        <button
-          (click)="showCreate()"
-          class="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold transition">
-          + Novo Projeto
+        <button (click)="showCreate()" class="btn-gradient flex items-center gap-2 px-4 py-2 text-sm cursor-pointer">
+          <i class="fas fa-plus text-xs"></i> Novo Projeto
         </button>
       }
     </div>
 
     <!-- Formulário criar projeto -->
     @if (showCreateInput()) {
-      <div class="mb-8 p-5 rounded-xl bg-gray-900 border border-gray-700">
-        <h3 class="text-sm font-semibold text-gray-300 mb-3">Nome do novo projeto</h3>
+      <div class="glass mb-8 p-5 fade-up">
+        <h3 class="text-sm font-semibold text-gray-300 mb-3" style="font-family:var(--font-display)">Nome do novo projeto</h3>
         @if (errorMessage()) {
           <p class="text-red-400 text-sm mb-3">{{ errorMessage() }}</p>
         }
@@ -45,67 +54,81 @@
             (ngModelChange)="newProjectName.set($event)"
             (keyup.enter)="createProject()"
             placeholder="Ex: App de Pagamentos"
-            class="flex-1 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition"
+            class="flex-1 px-4 py-2.5 rounded-xl text-white placeholder-gray-500 focus:outline-none transition text-sm"
+            style="background:var(--bg-glass-hover); border:1px solid var(--border-glass); font-family:var(--font-sans)"
             autofocus
           />
-          <button
-            (click)="createProject()"
-            [disabled]="!newProjectName().trim()"
-            class="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-semibold transition">
+          <button (click)="createProject()" [disabled]="!newProjectName().trim()"
+            class="btn-gradient px-5 py-2.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
             Criar
           </button>
-          <button
-            (click)="cancelCreate()"
-            class="px-4 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm text-gray-300 transition">
+          <button (click)="cancelCreate()"
+            class="px-4 py-2.5 rounded-xl text-sm text-gray-300 transition cursor-pointer"
+            style="background:var(--bg-glass); border:1px solid var(--border-glass)">
             Cancelar
           </button>
         </div>
       </div>
     }
 
+    <!-- Skeleton loading -->
+    @if (isLoadingProjects()) {
+      <div class="grid gap-4">
+        @for (i of [1, 2, 3]; track i) {
+          <div class="glass p-5 animate-pulse">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl shrink-0" style="background:var(--bg-glass-hover)"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-4 rounded-lg w-1/3" style="background:var(--bg-glass-hover)"></div>
+                <div class="h-3 rounded-lg w-1/5" style="background:var(--bg-glass)"></div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
     <!-- Estado vazio -->
-    @if (!hasProjects() && !showCreateInput()) {
-      <div class="flex flex-col items-center justify-center py-24 text-center">
-        <div class="w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center mb-5">
-          <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-          </svg>
+    @if (!isLoadingProjects() && !hasProjects() && !showCreateInput()) {
+      <div class="flex flex-col items-center justify-center py-24 text-center fade-up">
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 glass"
+          style="border-color:var(--border-hi)">
+          <i class="fas fa-layer-group text-2xl" style="color:var(--accent-blue)"></i>
         </div>
-        <h3 class="text-lg font-semibold mb-2">Nenhum projeto ainda</h3>
-        <p class="text-gray-400 text-sm mb-6 max-w-sm">
-          Crie seu primeiro projeto para começar a validar e refinar histórias de usuário com IA.
+        <h3 class="text-xl font-bold mb-2" style="font-family:var(--font-display)">Nenhum projeto ainda</h3>
+        <p class="text-sm mb-8 max-w-sm leading-relaxed" style="color:#6b7280">
+          Crie seu primeiro projeto para começar a refinar histórias de usuário com IA.
         </p>
-        <button
-          (click)="showCreate()"
-          class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 font-semibold transition">
-          Criar primeiro projeto
+        <button (click)="showCreate()" class="btn-gradient px-8 py-3 text-sm cursor-pointer">
+          <i class="fas fa-plus mr-2"></i>Criar primeiro projeto
         </button>
       </div>
     }
 
     <!-- Lista de projetos -->
-    @if (hasProjects()) {
+    @if (!isLoadingProjects() && hasProjects()) {
       <div class="grid gap-4">
-        @for (backlog of backlogs(); track backlog.projectName) {
-          <div
-            (click)="openProject(backlog.projectName)"
-            class="group p-5 rounded-xl bg-gray-900 border border-gray-800 hover:border-gray-600 cursor-pointer transition">
+        @for (backlog of backlogs(); track backlog.projectName; let i = $index) {
+          <div (click)="openProject(backlog.projectName)"
+            class="glass group p-5 cursor-pointer transition-all fade-up"
+            style="border-top: 3px solid var(--accent-blue); animation-delay:{{ i * 60 }}ms">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-lg bg-blue-600/20 border border-blue-600/30 flex items-center justify-center flex-shrink-0">
-                  <span class="text-blue-400 font-bold text-sm">{{ backlog.projectName.charAt(0).toUpperCase() }}</span>
+                <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                  style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.25)">
+                  <span class="font-black text-base" style="color:var(--accent-blue); font-family:var(--font-display)">
+                    {{ backlog.projectName.charAt(0).toUpperCase() }}
+                  </span>
                 </div>
                 <div>
-                  <h3 class="font-semibold text-white group-hover:text-blue-300 transition">{{ backlog.projectName }}</h3>
-                  <p class="text-xs text-gray-500 mt-0.5">
+                  <h3 class="font-semibold text-white transition group-hover:text-blue-300"
+                    style="font-family:var(--font-display)">{{ backlog.projectName }}</h3>
+                  <p class="text-xs mt-0.5" style="color:#6b7280">
                     {{ storyCount(backlog) }} {{ storyCount(backlog) === 1 ? 'história' : 'histórias' }} no backlog
                   </p>
                 </div>
               </div>
-              <svg class="w-5 h-5 text-gray-600 group-hover:text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
+              <i class="fas fa-chevron-right text-sm transition text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1"></i>
             </div>
           </div>
         }

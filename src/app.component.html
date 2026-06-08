@@ -1,11 +1,11 @@
-<div class="min-h-screen bg-gray-900 text-gray-200">
+<div class="min-h-screen text-gray-200" style="background-color:var(--bg-base)">
 
   <!-- ===================== BACKLOG / PROJECT AREA ===================== -->
   @if (currentView() === 'backlog') {
     <div class="flex flex-col min-h-screen">
 
       <!-- Top Nav -->
-      <header class="bg-gray-800/90 backdrop-blur border-b border-gray-700 px-6 py-4 sticky top-0 z-10">
+      <header class="glass px-6 py-3 sticky top-0 z-10" style="border-radius:0; border-left:none; border-right:none; border-top:none;">
         <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div class="flex items-center gap-3">
             <button (click)="goHome()"
@@ -52,14 +52,15 @@
               </button>
             }
             <button (click)="showAnalyzer()"
-              class="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold text-white transition shadow">
+              class="btn-gradient flex items-center gap-2 px-4 py-2 text-sm cursor-pointer">
               <i class="fas fa-magic text-xs"></i>
-              <span>Analisar História</span>
+              <span>Analisar</span>
             </button>
             <button (click)="showImporter()"
-              class="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm font-semibold text-white transition shadow">
+              class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer"
+              style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.35); color:var(--accent-emerald)">
               <i class="fas fa-file-import text-xs"></i>
-              <span>Importar Arquivos</span>
+              <span>Importar</span>
             </button>
           </div>
         </div>
@@ -77,20 +78,20 @@
         @if (groupedBacklog(); as grouped) {
           <div class="space-y-6">
             @for (epic of objectKeys(grouped); track epic) {
-              <div class="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg">
+              <div class="glass overflow-hidden" style="border-top:3px solid var(--accent-amber)">
 
                 <!-- Epic header -->
-                <div class="flex items-center gap-3 px-5 py-4 bg-orange-950/40 border-b border-orange-800/30">
-                  <i class="fas fa-layer-group text-orange-400"></i>
-                  <span class="text-sm font-bold text-orange-300 uppercase tracking-wider">Épico</span>
-                  <span class="text-base font-semibold text-orange-200">{{ epic }}</span>
+                <div class="flex items-center gap-3 px-5 py-4 border-b" style="background:rgba(245,158,11,0.07); border-color:rgba(245,158,11,0.2)">
+                  <i class="fas fa-layer-group" style="color:var(--accent-amber)"></i>
+                  <span class="text-xs font-bold uppercase tracking-wider" style="color:var(--accent-amber)">Épico</span>
+                  <span class="text-sm font-semibold text-orange-100">{{ epic }}</span>
                 </div>
 
                 <div class="p-4 space-y-3">
                   @for (feature of objectKeys(grouped[epic]); track feature) {
                     <!-- Feature group -->
-                    <div class="border border-purple-800/30 rounded-xl bg-purple-950/20 overflow-hidden">
-                      <div class="flex items-center gap-2 px-4 py-3 bg-purple-900/20 border-b border-purple-800/20">
+                    <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(139,92,246,0.2); background:rgba(139,92,246,0.05)">
+                      <div class="flex items-center gap-2 px-4 py-3 border-b" style="background:rgba(139,92,246,0.08); border-color:rgba(139,92,246,0.15)">
                         <i class="fas fa-puzzle-piece text-purple-400 text-xs"></i>
                         <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Feature</span>
                         <span class="text-sm font-semibold text-purple-200">{{ feature }}</span>

@@ -19,6 +19,7 @@ export class DashboardComponent implements OnInit {
   showCreateInput = signal(false);
   newProjectName = signal('');
   errorMessage = signal<string | null>(null);
+  isLoadingProjects = signal(true);
 
   hasProjects = computed(() => this.backlogs().length > 0);
   userEmail = computed(() => this.auth.user()?.email ?? '');
@@ -33,6 +34,8 @@ export class DashboardComponent implements OnInit {
       this.backlogs.set(stored ? JSON.parse(stored) : []);
     } catch {
       this.backlogs.set([]);
+    } finally {
+      this.isLoadingProjects.set(false);
     }
   }
 
