@@ -136,50 +136,71 @@ export class GeminiService {
   }
 
   async processDocumentForBacklog(documentContent: string): Promise<ExtractedBacklogItems[]> {
-    // Fase 1: descoberta — extrai APENAS títulos, épicos e features (resposta pequena)
+    // Fase 1: descoberta — extrai título, épico, feature e descrição curta de cada história
     const outlines = await this.discoverStoryOutlines(documentContent);
-
     if (outlines.length === 0) return [];
 
-    // Fase 2: refinamento em lotes de 3 — cada lote gera histórias completas
-    const BATCH = 3;
+    // Fase 2: refina cada história individualmente usando só a descrição extraída
     const allItems: ExtractedBacklogItems[] = [];
+    const grouped: Record<string, Record<string, typeof outlines>> = {};
 
-    for (let i = 0; i < outlines.length; i += BATCH) {
-      const batch = outlines.slice(i, i + BATCH);
-      const batchTitles = batch.map(o => `- ${o.title} (Épico: ${o.epic}, Feature: ${o.feature})`).join('\n');
-      const items = await this.refineBatchFromDocument(documentContent, batchTitles);
-      allItems.push(...items);
+    for (const outline of outlines) {
+      if (!grouped[outline.epic]) grouped[outline.epic] = {};
+      if (!grouped[outline.epic][outline.feature]) grouped[outline.epic][outline.feature] = [];
+      grouped[outline.epic][outline.feature].push(outline);
+    }
+
+    for (const epic of Object.keys(grouped)) {
+      for (const feature of Object.keys(grouped[epic])) {
+        const stories: RefinedStory[] = [];
+        for (const outline of grouped[epic][feature]) {
+          try {
+            const result = await this.refineUserStoryStrategic(
+              `Como ${outline.persona ?? 'usuário'}, quero ${outline.title}. Contexto: ${outline.description}`
+            );
+            if (result.refinedStories?.length) {
+              const s = { ...result.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature };
+              stories.push(s);
+            }
+          } catch { /* pula história com erro, continua */ }
+        }
+        if (stories.length > 0) {
+          allItems.push({ epicSuggestion: epic, featureSuggestion: feature, refinedStories: stories });
+        }
+      }
     }
 
     return allItems;
   }
 
-  private async discoverStoryOutlines(content: string): Promise<{ title: string; epic: string; feature: string }[]> {
+  private async discoverStoryOutlines(content: string): Promise<{
+    title: string; epic: string; feature: string; description: string; persona?: string;
+  }[]> {
     const system = `
 Você é um Analista de Negócios Sênior. Leia o documento e liste TODAS as histórias de usuário que podem ser extraídas.
-Para cada história, informe apenas: título, épico e feature.
+Para cada história forneça: título curto, épico, feature e descrição de 2-3 frases explicando o que o usuário quer fazer e por quê.
 
 Retorne APENAS JSON válido:
 {
   "stories": [
-    { "title": "string", "epic": "string", "feature": "string" }
+    { "title": "string", "epic": "string", "feature": "string", "description": "string", "persona": "string (opcional)" }
   ]
 }
 Sem markdown. Sem explicações.`;
 
     try {
-      const result = await this.generateValidation<{ stories: { title: string; epic: string; feature: string }[] }>(
-        content.substring(0, 6000), system
-      );
+      const result = await this.generateValidation<{
+        stories: { title: string; epic: string; feature: string; description: string; persona?: string }[]
+      }>(content.substring(0, 6000), system);
       return result.stories ?? [];
     } catch {
       return [];
     }
   }
 
-  private async refineBatchFromDocument(documentContent: string, batchTitles: string): Promise<ExtractedBacklogItems[]> {
-    const userPrompt = `Com base no documento abaixo, gere o refinamento COMPLETO apenas para estas histórias:\n${batchTitles}\n\nDocumento:\n${documentContent.substring(0, 5000)}`;
+  private async refineBatchFromDocument(_documentContent: string, _batchTitles: string): Promise<ExtractedBacklogItems[]> {
+    // Método mantido para compatibilidade — não mais utilizado
+    const userPrompt = '';
     const systemInstruction = `
       Você é um "Agente PO Autônomo", especialista sênior em Gerenciamento de Produtos. Analise documentos de requisitos e decomponha em backlog acionável.
 
