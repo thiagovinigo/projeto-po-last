@@ -135,43 +135,51 @@ export class GeminiService {
     return this.generateValidation<StrategicRefinementResult>(story, systemInstruction);
   }
 
-  private splitDocumentIntoChunks(content: string, maxChars = 4000): string[] {
-    if (content.length <= maxChars) return [content];
-
-    const chunks: string[] = [];
-    // Tenta dividir por quebras de linha/parágrafos para não cortar no meio de uma frase
-    const paragraphs = content.split(/\n{2,}/);
-    let current = '';
-
-    for (const para of paragraphs) {
-      if ((current + para).length > maxChars && current.length > 0) {
-        chunks.push(current.trim());
-        current = para + '\n\n';
-      } else {
-        current += para + '\n\n';
-      }
-    }
-    if (current.trim()) chunks.push(current.trim());
-    return chunks;
-  }
-
   async processDocumentForBacklog(documentContent: string): Promise<ExtractedBacklogItems[]> {
-    const chunks = this.splitDocumentIntoChunks(documentContent);
+    // Fase 1: descoberta — extrai APENAS títulos, épicos e features (resposta pequena)
+    const outlines = await this.discoverStoryOutlines(documentContent);
 
-    if (chunks.length > 1) {
-      // Processa cada chunk e mescla os resultados
-      const allItems: ExtractedBacklogItems[] = [];
-      for (const chunk of chunks) {
-        const result = await this.processDocumentChunk(chunk);
-        allItems.push(...result);
-      }
-      return allItems;
+    if (outlines.length === 0) return [];
+
+    // Fase 2: refinamento em lotes de 3 — cada lote gera histórias completas
+    const BATCH = 3;
+    const allItems: ExtractedBacklogItems[] = [];
+
+    for (let i = 0; i < outlines.length; i += BATCH) {
+      const batch = outlines.slice(i, i + BATCH);
+      const batchTitles = batch.map(o => `- ${o.title} (Épico: ${o.epic}, Feature: ${o.feature})`).join('\n');
+      const items = await this.refineBatchFromDocument(documentContent, batchTitles);
+      allItems.push(...items);
     }
 
-    return this.processDocumentChunk(documentContent);
+    return allItems;
   }
 
-  private async processDocumentChunk(documentContent: string): Promise<ExtractedBacklogItems[]> {
+  private async discoverStoryOutlines(content: string): Promise<{ title: string; epic: string; feature: string }[]> {
+    const system = `
+Você é um Analista de Negócios Sênior. Leia o documento e liste TODAS as histórias de usuário que podem ser extraídas.
+Para cada história, informe apenas: título, épico e feature.
+
+Retorne APENAS JSON válido:
+{
+  "stories": [
+    { "title": "string", "epic": "string", "feature": "string" }
+  ]
+}
+Sem markdown. Sem explicações.`;
+
+    try {
+      const result = await this.generateValidation<{ stories: { title: string; epic: string; feature: string }[] }>(
+        content.substring(0, 6000), system
+      );
+      return result.stories ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async refineBatchFromDocument(documentContent: string, batchTitles: string): Promise<ExtractedBacklogItems[]> {
+    const userPrompt = `Com base no documento abaixo, gere o refinamento COMPLETO apenas para estas histórias:\n${batchTitles}\n\nDocumento:\n${documentContent.substring(0, 5000)}`;
     const systemInstruction = `
       Você é um "Agente PO Autônomo", especialista sênior em Gerenciamento de Produtos. Analise documentos de requisitos e decomponha em backlog acionável.
 
@@ -228,7 +236,7 @@ export class GeminiService {
       **CRITICAL: JSON OUTPUT MUST BE VALID.** Output ONLY the JSON, no markdown fences, no explanations.
     `;
 
-    const result = await this.generateValidation<{ items: ExtractedBacklogItems[] }>(documentContent, systemInstruction);
+    const result = await this.generateValidation<{ items: ExtractedBacklogItems[] }>(userPrompt, systemInstruction);
     return result.items ?? [];
   }
 
