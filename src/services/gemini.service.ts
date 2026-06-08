@@ -162,7 +162,26 @@ export class GeminiService {
               const s = { ...result.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature };
               stories.push(s);
             }
-          } catch { /* pula história com erro, continua */ }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit');
+            if (isRateLimit) {
+              // Aguarda 60s e retenta uma vez antes de desistir desta história
+              await new Promise(r => setTimeout(r, 60_000));
+              try {
+                const retry = await this.refineUserStoryStrategic(
+                  `Como ${outline.persona ?? 'usuário'}, quero ${outline.title}. Contexto: ${outline.description}`
+                );
+                if (retry.refinedStories?.length) {
+                  const s = { ...retry.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature };
+                  stories.push(s);
+                }
+              } catch { /* desiste desta história após retry */ }
+            }
+            // história com outro erro é pulada silenciosamente
+          }
+          // Pausa entre chamadas para não estourar rate limit da Groq
+          await new Promise(r => setTimeout(r, 2_000));
         }
         if (stories.length > 0) {
           allItems.push({ epicSuggestion: epic, featureSuggestion: feature, refinedStories: stories });
@@ -176,24 +195,36 @@ export class GeminiService {
   private async discoverStoryOutlines(content: string): Promise<{
     title: string; epic: string; feature: string; description: string; persona?: string;
   }[]> {
-    const system = `
-Você é um Analista de Negócios Sênior. Leia o documento e liste TODAS as histórias de usuário que podem ser extraídas.
-Para cada história forneça: título curto, épico, feature e descrição de 2-3 frases explicando o que o usuário quer fazer e por quê.
+    const system = `Você é um Analista de Negócios Sênior especialista em extração de requisitos.
+Leia o documento abaixo e liste TODAS as funcionalidades, requisitos ou histórias de usuário que podem ser extraídas.
+Mesmo que o documento não use o formato "Como [persona]...", infira as histórias a partir dos requisitos descritos.
 
-Retorne APENAS JSON válido:
+Retorne APENAS JSON válido com esta estrutura exata:
 {
   "stories": [
-    { "title": "string", "epic": "string", "feature": "string", "description": "string", "persona": "string (opcional)" }
+    { "title": "string", "epic": "string", "feature": "string", "description": "string", "persona": "string" }
   ]
 }
-Sem markdown. Sem explicações.`;
+Sem markdown. Sem explicações. Sem texto fora do JSON.`;
+
+    // 25 000 chars ≈ 6 000 tokens — capta documentos extensos sem estourar contexto
+    const documentChunk = content.substring(0, 25_000);
 
     try {
-      const result = await this.generateValidation<{
-        stories: { title: string; epic: string; feature: string; description: string; persona?: string }[]
-      }>(content.substring(0, 6000), system);
-      return result.stories ?? [];
-    } catch {
+      const response = await this.chat({
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: `Analise o documento abaixo e extraia todas as histórias de usuário:\n\n${documentChunk}` }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2
+      });
+
+      const raw = response.choices[0].message.content?.trim() ?? '';
+      const parsed = JSON.parse(raw) as { stories?: { title: string; epic: string; feature: string; description: string; persona?: string }[] };
+      return parsed.stories ?? [];
+    } catch (err) {
+      console.error('[discoverStoryOutlines] Falha na extração:', err);
       return [];
     }
   }
