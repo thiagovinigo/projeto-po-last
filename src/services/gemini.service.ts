@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import Groq from 'groq-sdk';
-import { StrategicRefinementResult, TestScenarios, RefinedStory, ExtractedBacklogItems } from '../models/validation.model';
+import { StrategicRefinementResult, TestScenarios, RefinedStory, ExtractedBacklogItems, BacklogItem, BacklogDependencyAnalysis, BacklogRiskAnalysis } from '../models/validation.model';
 import { environment } from '../environments/environment';
 
 export type DocumentKind = 'prd' | 'spec';
@@ -283,6 +283,75 @@ export class GeminiService {
       console.error('Error calling Groq API for technical artifact generation:', error);
       throw new Error('Falha ao gerar o artefato técnico.');
     }
+  }
+
+  async analyzeBacklogDependencies(stories: BacklogItem[]): Promise<BacklogDependencyAnalysis> {
+    const storySummaries = stories.map(s =>
+      `- "${s.title}" [Épico: ${s.epicSuggestion}, Feature: ${s.featureSuggestion}]\n  Dependências: ${s.identifiedDependencies?.join(', ') || 'nenhuma'}\n  Considerações: ${s.technicalConsiderations?.slice(0, 2).join(', ') || ''}`
+    ).join('\n');
+
+    const system = `
+Você é um Arquiteto de Software e Analista de Projetos Sênior.
+Analise o backlog de histórias de usuário abaixo e identifique dependências entre elas.
+
+**Retorne APENAS JSON válido com esta estrutura:**
+{
+  "summary": "string — resumo executivo em 2-3 frases",
+  "criticalPath": ["título da história em ordem de implementação recomendada"],
+  "circularDependencies": [["história A", "história B"]],
+  "storyDependencies": [
+    {
+      "storyTitle": "string",
+      "dependsOn": ["outras histórias do backlog que devem ser feitas antes"],
+      "externalDependencies": ["APIs, times, serviços externos"],
+      "notes": "string"
+    }
+  ],
+  "recommendations": ["recomendação acionável 1", "recomendação acionável 2"]
+}
+Responda APENAS com o JSON. Sem markdown. Sem explicações.`;
+
+    const prompt = `Backlog com ${stories.length} histórias:\n\n${storySummaries}`;
+    return this.generateValidation<BacklogDependencyAnalysis>(prompt, system);
+  }
+
+  async analyzeBacklogRisks(stories: BacklogItem[]): Promise<BacklogRiskAnalysis> {
+    const storySummaries = stories.map(s => {
+      const risks = s.riskAnalysis?.map(r => `${r.type}: ${r.description}`).join('; ') || 'nenhum';
+      return `- "${s.title}" [${s.epicSuggestion} > ${s.featureSuggestion}]\n  Riscos: ${risks}`;
+    }).join('\n');
+
+    const system = `
+Você é um Gerente de Riscos e Product Manager Sênior.
+Analise os riscos do backlog abaixo e gere um panorama consolidado.
+
+**Retorne APENAS JSON válido com esta estrutura:**
+{
+  "summary": "string — panorama geral em 2-3 frases",
+  "overallRiskLevel": "baixo|médio|alto|crítico",
+  "totalRisks": 0,
+  "hotspots": [
+    {
+      "area": "nome do Épico ou Feature",
+      "riskCount": 0,
+      "topRisk": "descrição do risco mais crítico",
+      "severity": "baixa|média|alta"
+    }
+  ],
+  "topRisks": [
+    {
+      "storyTitle": "string",
+      "type": "Técnico|Negócio|Usabilidade|Compliance|Rollout",
+      "description": "string",
+      "mitigation": "string"
+    }
+  ],
+  "recommendations": ["ação prioritária 1", "ação prioritária 2"]
+}
+Responda APENAS com o JSON. Sem markdown. Sem explicações.`;
+
+    const prompt = `Backlog com ${stories.length} histórias:\n\n${storySummaries}`;
+    return this.generateValidation<BacklogRiskAnalysis>(prompt, system);
   }
 
   async generateProjectDocument(kind: DocumentKind, draftMarkdown: string): Promise<string> {

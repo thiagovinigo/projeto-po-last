@@ -18,6 +18,26 @@
           </div>
           <div class="flex items-center gap-2">
             @if (activeBacklog()?.items?.length) {
+              <button (click)="checkDependencies()" [disabled]="!!isAnalyzingBacklog()"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-700/60 hover:bg-amber-600/80 disabled:opacity-50 disabled:cursor-not-allowed text-amber-200 text-xs font-semibold transition"
+                title="IA analisa dependências entre todas as histórias do backlog">
+                @if (isAnalyzingBacklog() === 'dependencies') {
+                  <i class="fas fa-spinner fa-spin text-xs"></i>
+                } @else {
+                  <i class="fas fa-project-diagram text-xs"></i>
+                }
+                <span>Dependências</span>
+              </button>
+              <button (click)="checkRisks()" [disabled]="!!isAnalyzingBacklog()"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-800/60 hover:bg-red-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-red-200 text-xs font-semibold transition"
+                title="IA analisa riscos consolidados de todo o backlog">
+                @if (isAnalyzingBacklog() === 'risks') {
+                  <i class="fas fa-spinner fa-spin text-xs"></i>
+                } @else {
+                  <i class="fas fa-exclamation-triangle text-xs"></i>
+                }
+                <span>Riscos</span>
+              </button>
               <button (click)="generatePrd()" [disabled]="!!isGeneratingArtifact()"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-700/60 hover:bg-indigo-600/80 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-200 text-xs font-semibold transition">
                 @if (isGeneratingArtifact() === 'prd') {
@@ -903,5 +923,236 @@
     (download)="downloadGeneratedDoc()"
     (close)="closeGeneratedDoc()">
   </app-document-viewer>
+
+  <!-- ===================== BACKLOG ANALYSIS MODAL ===================== -->
+  @if (backlogAnalysisModal(); as modal) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+         (click)="closeBacklogModal()">
+      <div class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl"
+           (click)="$event.stopPropagation()">
+
+        <!-- Modal Header -->
+        <div class="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-900 rounded-t-2xl z-10">
+          <div class="flex items-center gap-3">
+            @if (modal.type === 'dependencies') {
+              <div class="w-9 h-9 rounded-lg bg-amber-700/40 flex items-center justify-center">
+                <i class="fas fa-project-diagram text-amber-300"></i>
+              </div>
+              <div>
+                <h2 class="text-base font-bold text-white">Análise de Dependências</h2>
+                <p class="text-xs text-gray-400">Mapa de dependências entre histórias do backlog</p>
+              </div>
+            } @else {
+              <div class="w-9 h-9 rounded-lg bg-red-800/40 flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-red-300"></i>
+              </div>
+              <div>
+                <h2 class="text-base font-bold text-white">Análise de Riscos</h2>
+                <p class="text-xs text-gray-400">Panorama consolidado de riscos do backlog</p>
+              </div>
+            }
+          </div>
+          <button (click)="closeBacklogModal()"
+            class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-6 py-5 space-y-5">
+
+          @if (modal.type === 'dependencies') {
+            <!-- DEPENDENCIES VIEW -->
+            @let dep = asDependencyAnalysis(modal.result);
+
+            <!-- Summary -->
+            <div class="p-4 bg-amber-950/30 border border-amber-800/40 rounded-xl">
+              <p class="text-sm text-amber-100">{{ dep.summary }}</p>
+            </div>
+
+            <!-- Critical Path -->
+            @if (dep.criticalPath?.length) {
+              <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <i class="fas fa-route text-amber-400"></i> Caminho Crítico (ordem recomendada)
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  @for (title of dep.criticalPath; track title; let i = $index) {
+                    <div class="flex items-center gap-1.5">
+                      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-xs text-gray-200">
+                        <span class="w-4 h-4 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center font-bold shrink-0">{{ i + 1 }}</span>
+                        {{ title }}
+                      </span>
+                      @if (i < dep.criticalPath.length - 1) {
+                        <i class="fas fa-arrow-right text-gray-600 text-xs"></i>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Circular dependencies -->
+            @if (dep.circularDependencies?.length) {
+              <div class="p-4 bg-red-950/30 border border-red-700/40 rounded-xl">
+                <h3 class="text-xs font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <i class="fas fa-exclamation-circle"></i> Dependências Circulares Detectadas
+                </h3>
+                @for (group of dep.circularDependencies; track group[0]) {
+                  <p class="text-sm text-red-300">{{ group.join(' ↔ ') }}</p>
+                }
+              </div>
+            }
+
+            <!-- Story dependencies -->
+            @if (dep.storyDependencies?.length) {
+              <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <i class="fas fa-sitemap text-amber-400"></i> Dependências por História
+                </h3>
+                <div class="space-y-2">
+                  @for (sd of dep.storyDependencies; track sd.storyTitle) {
+                    @if (sd.dependsOn?.length || sd.externalDependencies?.length) {
+                      <div class="p-3 bg-gray-800/60 rounded-lg border border-gray-700">
+                        <p class="text-sm font-semibold text-gray-200 mb-2">{{ sd.storyTitle }}</p>
+                        @if (sd.dependsOn?.length) {
+                          <div class="flex flex-wrap gap-1 mb-1">
+                            <span class="text-xs text-gray-500 mr-1">Depende de:</span>
+                            @for (dep of sd.dependsOn; track dep) {
+                              <span class="text-xs px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300 border border-amber-700/30">{{ dep }}</span>
+                            }
+                          </div>
+                        }
+                        @if (sd.externalDependencies?.length) {
+                          <div class="flex flex-wrap gap-1">
+                            <span class="text-xs text-gray-500 mr-1">Externas:</span>
+                            @for (ext of sd.externalDependencies; track ext) {
+                              <span class="text-xs px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300 border border-purple-700/30">{{ ext }}</span>
+                            }
+                          </div>
+                        }
+                        @if (sd.notes) {
+                          <p class="text-xs text-gray-400 mt-1 italic">{{ sd.notes }}</p>
+                        }
+                      </div>
+                    }
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Recommendations -->
+            @if (dep.recommendations?.length) {
+              <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <i class="fas fa-lightbulb text-yellow-400"></i> Recomendações
+                </h3>
+                <ul class="space-y-2">
+                  @for (rec of dep.recommendations; track rec) {
+                    <li class="flex items-start gap-2 text-sm text-gray-300">
+                      <i class="fas fa-check-circle text-amber-400 mt-0.5 shrink-0 text-xs"></i>
+                      {{ rec }}
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+
+          } @else {
+            <!-- RISKS VIEW -->
+            @let risk = asRiskAnalysis(modal.result);
+
+            <!-- Summary + level badge -->
+            <div class="flex items-start gap-4 p-4 rounded-xl border"
+              [class]="risk.overallRiskLevel === 'crítico' ? 'bg-red-950/40 border-red-700/50' :
+                        risk.overallRiskLevel === 'alto' ? 'bg-orange-950/40 border-orange-700/50' :
+                        risk.overallRiskLevel === 'médio' ? 'bg-yellow-950/40 border-yellow-700/50' :
+                        'bg-green-950/40 border-green-700/50'">
+              <div class="text-center shrink-0">
+                <p class="text-3xl font-black"
+                  [class]="risk.overallRiskLevel === 'crítico' ? 'text-red-400' :
+                            risk.overallRiskLevel === 'alto' ? 'text-orange-400' :
+                            risk.overallRiskLevel === 'médio' ? 'text-yellow-400' : 'text-green-400'">
+                  {{ risk.overallRiskLevel | uppercase }}
+                </p>
+                <p class="text-xs text-gray-400">{{ risk.totalRisks }} riscos</p>
+              </div>
+              <p class="text-sm text-gray-200">{{ risk.summary }}</p>
+            </div>
+
+            <!-- Hotspots -->
+            @if (risk.hotspots?.length) {
+              <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <i class="fas fa-fire text-orange-400"></i> Áreas de Maior Risco
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  @for (h of risk.hotspots; track h.area) {
+                    <div class="p-3 rounded-lg border"
+                      [class]="h.severity === 'alta' ? 'bg-red-950/30 border-red-700/40' :
+                                h.severity === 'média' ? 'bg-yellow-950/30 border-yellow-700/40' :
+                                'bg-green-950/30 border-green-700/40'">
+                      <div class="flex items-center justify-between mb-1">
+                        <p class="text-sm font-semibold text-gray-200 truncate">{{ h.area }}</p>
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ml-2"
+                          [class]="h.severity === 'alta' ? 'bg-red-800 text-red-200' :
+                                    h.severity === 'média' ? 'bg-yellow-800 text-yellow-200' :
+                                    'bg-green-800 text-green-200'">
+                          {{ h.riskCount }} riscos
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-400 line-clamp-2">{{ h.topRisk }}</p>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Top risks -->
+            @if (risk.topRisks?.length) {
+              <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <i class="fas fa-shield-alt text-red-400"></i> Riscos Prioritários
+                </h3>
+                <div class="space-y-2">
+                  @for (r of risk.topRisks; track r.description) {
+                    <div class="p-3 bg-gray-800/60 rounded-lg border border-gray-700">
+                      <div class="flex items-start justify-between gap-2 mb-1">
+                        <p class="text-xs font-semibold text-gray-400">{{ r.storyTitle }}</p>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 shrink-0">{{ r.type }}</span>
+                      </div>
+                      <p class="text-sm text-gray-200 mb-2">{{ r.description }}</p>
+                      <div class="flex items-start gap-2 pt-2 border-t border-gray-700/50">
+                        <i class="fas fa-lightbulb text-yellow-400 text-xs mt-0.5 shrink-0"></i>
+                        <p class="text-xs text-gray-400">{{ r.mitigation }}</p>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Recommendations -->
+            @if (risk.recommendations?.length) {
+              <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <i class="fas fa-lightbulb text-yellow-400"></i> Ações Prioritárias
+                </h3>
+                <ul class="space-y-2">
+                  @for (rec of risk.recommendations; track rec) {
+                    <li class="flex items-start gap-2 text-sm text-gray-300">
+                      <i class="fas fa-arrow-right text-red-400 mt-0.5 shrink-0 text-xs"></i>
+                      {{ rec }}
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          }
+
+        </div>
+      </div>
+    </div>
+  }
 
 </div>

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GeminiService } from './services/gemini.service';
-import { AnyValidationResult, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult, ProjectInfo } from './models/validation.model';
+import { AnyValidationResult, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult, ProjectInfo, BacklogDependencyAnalysis, BacklogRiskAnalysis } from './models/validation.model';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { DocumentService } from './services/document.service';
 import { DocumentExportService } from './services/document-export.service';
@@ -62,6 +62,13 @@ export class AppComponent implements OnInit {
   // Document Generation State
   generatedDoc = signal<GeneratedDocument | null>(null);
   isGeneratingArtifact = signal<'prd' | 'spec' | null>(null);
+
+  // Backlog Analysis Modal
+  isAnalyzingBacklog = signal<'dependencies' | 'risks' | null>(null);
+  backlogAnalysisModal = signal<{
+    type: 'dependencies' | 'risks';
+    result: BacklogDependencyAnalysis | BacklogRiskAnalysis;
+  } | null>(null);
 
   activeBacklog = computed(() => {
     const selectedName = this.selectedBacklogName();
@@ -613,6 +620,47 @@ ${story.testScenarios.unit}
       )
     );
     this.saveBacklogsToStorage();
+  }
+
+  // Backlog Analysis
+  async checkDependencies(): Promise<void> {
+    const items = this.activeBacklog()?.items;
+    if (!items?.length) return;
+    this.isAnalyzingBacklog.set('dependencies');
+    try {
+      const result = await this.geminiService.analyzeBacklogDependencies(items);
+      this.backlogAnalysisModal.set({ type: 'dependencies', result });
+    } catch {
+      this.error.set('Erro ao analisar dependências. Tente novamente.');
+    } finally {
+      this.isAnalyzingBacklog.set(null);
+    }
+  }
+
+  async checkRisks(): Promise<void> {
+    const items = this.activeBacklog()?.items;
+    if (!items?.length) return;
+    this.isAnalyzingBacklog.set('risks');
+    try {
+      const result = await this.geminiService.analyzeBacklogRisks(items);
+      this.backlogAnalysisModal.set({ type: 'risks', result });
+    } catch {
+      this.error.set('Erro ao analisar riscos. Tente novamente.');
+    } finally {
+      this.isAnalyzingBacklog.set(null);
+    }
+  }
+
+  closeBacklogModal(): void {
+    this.backlogAnalysisModal.set(null);
+  }
+
+  asDependencyAnalysis(result: BacklogDependencyAnalysis | BacklogRiskAnalysis): BacklogDependencyAnalysis {
+    return result as BacklogDependencyAnalysis;
+  }
+
+  asRiskAnalysis(result: BacklogDependencyAnalysis | BacklogRiskAnalysis): BacklogRiskAnalysis {
+    return result as BacklogRiskAnalysis;
   }
 
   // Document Generation
