@@ -134,6 +134,39 @@ export interface Backlog {
   info?: ProjectInfo;
 }
 
+// -- Backlog Analysis Models --
+
+export interface StoryDependency {
+  storyTitle: string;
+  dependsOn: string[];
+  externalDependencies: string[];
+  notes: string;
+}
+
+export interface BacklogDependencyAnalysis {
+  summary: string;
+  criticalPath: string[];
+  circularDependencies: string[][];
+  storyDependencies: StoryDependency[];
+  recommendations: string[];
+}
+
+export interface RiskHotspot {
+  area: string;
+  riskCount: number;
+  topRisk: string;
+  severity: 'baixa' | 'média' | 'alta';
+}
+
+export interface BacklogRiskAnalysis {
+  summary: string;
+  overallRiskLevel: 'baixo' | 'médio' | 'alto' | 'crítico';
+  totalRisks: number;
+  hotspots: RiskHotspot[];
+  topRisks: { storyTitle: string; type: string; description: string; mitigation: string }[];
+  recommendations: string[];
+}
+
 // -- Import Models --
 export interface ExtractedBacklogItems {
   epicSuggestion: string;

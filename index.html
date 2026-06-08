@@ -8,39 +8,115 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+    /* ── Design Tokens ────────────────────────────────────── */
+    :root {
+      --bg-base:        #0b0f19;
+      --bg-surface:     #111827;
+      --bg-glass:       rgba(255,255,255,0.03);
+      --bg-glass-hover: rgba(255,255,255,0.07);
+      --border-glass:   rgba(255,255,255,0.08);
+      --border-hi:      rgba(255,255,255,0.18);
+
+      --accent-blue:    #3b82f6;
+      --accent-purple:  #8b5cf6;
+      --accent-emerald: #10b981;
+      --accent-rose:    #f43f5e;
+      --accent-amber:   #f59e0b;
+      --accent-teal:    #14b8a6;
+
+      --glow-blue:   0 0 22px rgba(59,130,246,0.35);
+      --glow-purple: 0 0 22px rgba(139,92,246,0.35);
+      --shadow-card: 0 8px 32px rgba(0,0,0,0.28);
+
+      --font-sans:    'Inter', system-ui, sans-serif;
+      --font-display: 'Outfit', system-ui, sans-serif;
     }
-    
-    /* Custom styles for rendered markdown */
+
+    /* ── Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(ellipse at 0% 0%,   rgba(59,130,246,0.10) 0, transparent 55%),
+        radial-gradient(ellipse at 100% 100%, rgba(139,92,246,0.10) 0, transparent 55%);
+      min-height: 100vh;
+    }
+
+    h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); }
+
+    /* ── Scrollbar ─────────────────────────────────────────── */
+    ::-webkit-scrollbar       { width:7px; height:7px; }
+    ::-webkit-scrollbar-track { background: var(--bg-surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border-glass); border-radius:4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+
+    /* ── Glass Panel ──────────────────────────────────────── */
+    .glass {
+      background: var(--bg-glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border-glass);
+      border-radius: 16px;
+      box-shadow: var(--shadow-card);
+    }
+    .glass:hover { border-color: var(--border-hi); }
+
+    /* ── Gradient Button ──────────────────────────────────── */
+    .btn-gradient {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      box-shadow: var(--glow-blue);
+      transition: all 0.2s ease;
+      font-family: var(--font-display);
+      font-weight: 600;
+    }
+    .btn-gradient:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--glow-purple);
+    }
+    .btn-gradient:active { transform: translateY(0); }
+
+    /* ── Glow helpers ─────────────────────────────────────── */
+    .glow-blue   { box-shadow: var(--glow-blue); }
+    .glow-purple { box-shadow: var(--glow-purple); }
+
+    /* ── Story card accent bar ────────────────────────────── */
+    .story-card { border-top: 3px solid var(--accent-blue); }
+
+    /* ── Animations ──────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.35s ease-out both; }
+
+    @keyframes indeterminate-progress {
+      0%   { left:-50%; width:50%; }
+      100% { left:100%; width:50%; }
+    }
+    .animate-indeterminate-progress {
+      animation: indeterminate-progress 2s linear infinite;
+    }
+
+    /* ── Markdown prose ───────────────────────────────────── */
     .prose ul, .prose-sm ul {
       list-style-type: disc;
       list-style-position: inside;
       padding-left: 1rem;
     }
-    .prose li, .prose-sm li {
-      margin-bottom: 0.25rem;
-    }
-    .prose p:last-child, .prose-sm p:last-child {
-      margin-bottom: 0;
-    }
-    .prose strong, .prose-sm strong {
-      color: #e5e7eb; /* gray-200 */
-    }
-
-    /* Indeterminate progress bar animation */
-    @keyframes indeterminate-progress {
-      0% { left: -50%; width: 50%; }
-      100% { left: 100%; width: 50%; }
-    }
-    .animate-indeterminate-progress {
-      animation: indeterminate-progress 2s linear infinite;
-    }
+    .prose li, .prose-sm li  { margin-bottom: 0.25rem; }
+    .prose p:last-child, .prose-sm p:last-child { margin-bottom: 0; }
+    .prose strong, .prose-sm strong { color: #e5e7eb; }
   </style>
 
 </head>
-<body class="bg-gray-900 text-gray-100">
+<body class="text-gray-100" style="background-color:var(--bg-base)">
   <app-root></app-root>
 </body>
 </html>

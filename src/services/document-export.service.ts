@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { RefinedStory, DevelopmentTask, Risk, ProjectInfo, BacklogItem } from '../models/validation.model';
+import { RefinedStory, DevelopmentTask, Risk, ProjectInfo, BacklogItem, BacklogDependencyAnalysis, BacklogRiskAnalysis } from '../models/validation.model';
 
 @Injectable({ providedIn: 'root' })
 export class DocumentExportService {
@@ -114,6 +114,74 @@ export class DocumentExportService {
     });
 
     return md.trim();
+  }
+
+  buildDependencySection(analysis: BacklogDependencyAnalysis): string {
+    let md = `\n\n---\n\n## Análise de Dependências (IA)\n\n`;
+    md += `> ${analysis.summary}\n\n`;
+
+    if (analysis.criticalPath?.length) {
+      md += `### Caminho Crítico\n\n`;
+      analysis.criticalPath.forEach((t, i) => { md += `${i + 1}. ${t}\n`; });
+      md += '\n';
+    }
+
+    if (analysis.circularDependencies?.length) {
+      md += `### ⚠️ Dependências Circulares\n\n`;
+      analysis.circularDependencies.forEach(g => { md += `- ${g.join(' ↔ ')}\n`; });
+      md += '\n';
+    }
+
+    if (analysis.storyDependencies?.filter(s => s.dependsOn?.length || s.externalDependencies?.length).length) {
+      md += `### Mapa de Dependências\n\n`;
+      md += `| História | Depende de | Dependências Externas |\n`;
+      md += `|----------|------------|----------------------|\n`;
+      analysis.storyDependencies
+        .filter(s => s.dependsOn?.length || s.externalDependencies?.length)
+        .forEach(s => {
+          md += `| ${s.storyTitle} | ${s.dependsOn?.join(', ') || '—'} | ${s.externalDependencies?.join(', ') || '—'} |\n`;
+        });
+      md += '\n';
+    }
+
+    if (analysis.recommendations?.length) {
+      md += `### Recomendações\n\n`;
+      analysis.recommendations.forEach(r => { md += `- ${r}\n`; });
+    }
+
+    return md;
+  }
+
+  buildRiskSection(analysis: BacklogRiskAnalysis): string {
+    let md = `\n\n---\n\n## Análise de Riscos Consolidada (IA)\n\n`;
+    md += `**Nível geral de risco:** ${analysis.overallRiskLevel.toUpperCase()} (${analysis.totalRisks} riscos identificados)\n\n`;
+    md += `> ${analysis.summary}\n\n`;
+
+    if (analysis.hotspots?.length) {
+      md += `### Hotspots de Risco\n\n`;
+      md += `| Área | Riscos | Severidade | Principal Risco |\n`;
+      md += `|------|--------|------------|----------------|\n`;
+      analysis.hotspots.forEach(h => {
+        md += `| ${h.area} | ${h.riskCount} | ${h.severity} | ${h.topRisk} |\n`;
+      });
+      md += '\n';
+    }
+
+    if (analysis.topRisks?.length) {
+      md += `### Riscos Prioritários\n\n`;
+      analysis.topRisks.forEach(r => {
+        md += `#### [${r.type}] ${r.description}\n`;
+        md += `**História:** ${r.storyTitle}  \n`;
+        md += `**Mitigação:** ${r.mitigation}\n\n`;
+      });
+    }
+
+    if (analysis.recommendations?.length) {
+      md += `### Ações Prioritárias\n\n`;
+      analysis.recommendations.forEach(r => { md += `- ${r}\n`; });
+    }
+
+    return md;
   }
 
   downloadMarkdown(filename: string, content: string): void {

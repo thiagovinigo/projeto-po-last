@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GeminiService } from './services/gemini.service';
-import { AnyValidationResult, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult, ProjectInfo } from './models/validation.model';
+import { AnyValidationResult, RefinedStory, DevelopmentTask, ValidationResult, AdvancedValidationResult, Backlog, BacklogItem, ExtractedBacklogItems, StrategicRefinementResult, ProjectInfo, BacklogDependencyAnalysis, BacklogRiskAnalysis } from './models/validation.model';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { DocumentService } from './services/document.service';
 import { DocumentExportService } from './services/document-export.service';
@@ -62,10 +62,25 @@ export class AppComponent implements OnInit {
   importedFiles = signal<File[]>([]);
   isImporting = signal<boolean>(false);
   importError = signal<string | null>(null);
+  importStep = signal<string | null>(null);
+
+  // Project Info Conflict Modal
+  projectInfoConflict = signal<{
+    extracted: Partial<ProjectInfo>;
+    existing: ProjectInfo;
+  } | null>(null);
 
   // Document Generation State
   generatedDoc = signal<GeneratedDocument | null>(null);
   isGeneratingArtifact = signal<'prd' | 'spec' | null>(null);
+  generatingArtifactStep = signal<string | null>(null);
+
+  // Backlog Analysis Modal
+  isAnalyzingBacklog = signal<'dependencies' | 'risks' | null>(null);
+  backlogAnalysisModal = signal<{
+    type: 'dependencies' | 'risks';
+    result: BacklogDependencyAnalysis | BacklogRiskAnalysis;
+  } | null>(null);
 
   activeBacklog = computed(() => {
     const selectedName = this.selectedBacklogName();
@@ -561,27 +576,67 @@ ${story.testScenarios.unit}
     this.error.set(null);
 
     try {
-      const fileProcessingPromises = files.map(file => {
-        return new Promise<ExtractedBacklogItems[]>(async (resolve, reject) => {
-          try {
-            const content = await this.documentService.extractTextFromFile(file);
-            const result = await this.geminiService.processDocumentForBacklog(content);
-            resolve(result);
-          } catch (err) {
-            reject(new Error(`Falha ao processar o arquivo ${file.name}: ${err}`));
-          }
-        });
-      });
+      // Extrai texto de todos os arquivos primeiro
+      this.importStep.set('Lendo documentos...');
+      const fileContents = await Promise.all(
+        files.map(async file => ({
+          name: file.name,
+          content: await this.documentService.extractTextFromFile(file)
+        }))
+      );
 
-      const resultsFromAllFiles = await Promise.all(fileProcessingPromises);
+      // Roda extração de backlog + extração de info do projeto em paralelo
+      this.importStep.set('Extraindo histórias e informações do projeto...');
+      const combinedContent = fileContents.map(f => f.content).join('\n\n---\n\n');
+
+      const [resultsFromAllFiles, extractedInfo] = await Promise.all([
+        Promise.all(
+          fileContents.map(async ({ name, content }) => {
+            try {
+              return await this.geminiService.processDocumentForBacklog(content);
+            } catch (err) {
+              throw new Error(`Falha ao processar o arquivo ${name}: ${err}`);
+            }
+          })
+        ),
+        this.geminiService.extractProjectInfo(combinedContent)
+      ]);
+
       const allExtractedItems = resultsFromAllFiles.flat();
-      
+
       if (allExtractedItems.length === 0 && allExtractedItems.every(group => group.refinedStories.length === 0)) {
-          this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos fornecidos.');
-          return;
+        this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos fornecidos.');
+        return;
       }
 
       this.addExtractedItemsToBacklog(allExtractedItems);
+
+      // Lida com informações do projeto extraídas
+      this.importStep.set('Verificando informações do projeto...');
+      const hasExtractedInfo = Object.values(extractedInfo).some(v => v && (v as string).trim().length > 0);
+      if (hasExtractedInfo) {
+        const active = this.activeBacklog();
+        const existingInfo = active?.info;
+        const infoIsEmpty = !existingInfo || !(existingInfo.description || existingInfo.objective || existingInfo.targetUsers || existingInfo.stakeholders || existingInfo.techStack || existingInfo.constraints || existingInfo.notes);
+
+        if (infoIsEmpty) {
+          // Auto-preenche silenciosamente
+          const newInfo: ProjectInfo = {
+            description: extractedInfo.description ?? '',
+            objective: extractedInfo.objective ?? '',
+            targetUsers: extractedInfo.targetUsers ?? '',
+            stakeholders: extractedInfo.stakeholders ?? '',
+            techStack: extractedInfo.techStack ?? '',
+            constraints: extractedInfo.constraints ?? '',
+            notes: extractedInfo.notes ?? '',
+            updatedAt: Date.now()
+          };
+          this.saveProjectInfo(newInfo);
+        } else {
+          // Mostra modal de conflito
+          this.projectInfoConflict.set({ extracted: extractedInfo, existing: existingInfo! });
+        }
+      }
 
       const allRefinedStories = allExtractedItems.flatMap(group =>
         group.refinedStories.map(story => ({
@@ -606,6 +661,7 @@ ${story.testScenarios.unit}
       this.importError.set('A IA falhou em processar um ou mais documentos. Verifique o conteúdo ou tente novamente.');
     } finally {
       this.isImporting.set(false);
+      this.importStep.set(null);
     }
   }
   
@@ -657,16 +713,120 @@ ${story.testScenarios.unit}
     this.saveBacklogsToStorage();
   }
 
+  // Backlog Analysis
+  async checkDependencies(): Promise<void> {
+    const items = this.activeBacklog()?.items;
+    if (!items?.length) return;
+    this.isAnalyzingBacklog.set('dependencies');
+    try {
+      const result = await this.geminiService.analyzeBacklogDependencies(items);
+      this.backlogAnalysisModal.set({ type: 'dependencies', result });
+    } catch {
+      this.error.set('Erro ao analisar dependências. Tente novamente.');
+    } finally {
+      this.isAnalyzingBacklog.set(null);
+    }
+  }
+
+  async checkRisks(): Promise<void> {
+    const items = this.activeBacklog()?.items;
+    if (!items?.length) return;
+    this.isAnalyzingBacklog.set('risks');
+    try {
+      const result = await this.geminiService.analyzeBacklogRisks(items);
+      this.backlogAnalysisModal.set({ type: 'risks', result });
+    } catch {
+      this.error.set('Erro ao analisar riscos. Tente novamente.');
+    } finally {
+      this.isAnalyzingBacklog.set(null);
+    }
+  }
+
+  closeBacklogModal(): void {
+    this.backlogAnalysisModal.set(null);
+  }
+
+  applyExtractedProjectInfo(): void {
+    const conflict = this.projectInfoConflict();
+    if (!conflict) return;
+    const merged: ProjectInfo = {
+      description: conflict.extracted.description || conflict.existing.description,
+      objective: conflict.extracted.objective || conflict.existing.objective,
+      targetUsers: conflict.extracted.targetUsers || conflict.existing.targetUsers,
+      stakeholders: conflict.extracted.stakeholders || conflict.existing.stakeholders,
+      techStack: conflict.extracted.techStack || conflict.existing.techStack,
+      constraints: conflict.extracted.constraints || conflict.existing.constraints,
+      notes: conflict.extracted.notes || conflict.existing.notes,
+      updatedAt: Date.now()
+    };
+    this.saveProjectInfo(merged);
+    this.projectInfoConflict.set(null);
+  }
+
+  overwriteWithExtractedProjectInfo(): void {
+    const conflict = this.projectInfoConflict();
+    if (!conflict) return;
+    const newInfo: ProjectInfo = {
+      description: conflict.extracted.description ?? '',
+      objective: conflict.extracted.objective ?? '',
+      targetUsers: conflict.extracted.targetUsers ?? '',
+      stakeholders: conflict.extracted.stakeholders ?? '',
+      techStack: conflict.extracted.techStack ?? '',
+      constraints: conflict.extracted.constraints ?? '',
+      notes: conflict.extracted.notes ?? '',
+      updatedAt: Date.now()
+    };
+    this.saveProjectInfo(newInfo);
+    this.projectInfoConflict.set(null);
+  }
+
+  dismissProjectInfoConflict(): void {
+    this.projectInfoConflict.set(null);
+  }
+
+  getInfoField(obj: Partial<ProjectInfo> | null | undefined, key: string): string {
+    if (!obj) return '';
+    return (obj as Record<string, unknown>)[key] as string ?? '';
+  }
+
+  asDependencyAnalysis(result: BacklogDependencyAnalysis | BacklogRiskAnalysis): BacklogDependencyAnalysis {
+    return result as BacklogDependencyAnalysis;
+  }
+
+  asRiskAnalysis(result: BacklogDependencyAnalysis | BacklogRiskAnalysis): BacklogRiskAnalysis {
+    return result as BacklogRiskAnalysis;
+  }
+
   // Document Generation
+  private async runBacklogAnalyses() {
+    const items = this.activeBacklog()?.items ?? [];
+    if (!items.length) return { deps: null, risks: null };
+    try {
+      this.generatingArtifactStep.set('Analisando dependências e riscos...');
+      const [deps, risks] = await Promise.all([
+        this.geminiService.analyzeBacklogDependencies(items),
+        this.geminiService.analyzeBacklogRisks(items)
+      ]);
+      return { deps, risks };
+    } catch {
+      return { deps: null, risks: null };
+    }
+  }
+
   async generatePrd(): Promise<void> {
     const active = this.activeBacklog();
     if (!active || active.items.length === 0) return;
     const projectName = active.projectName;
-
     this.isGeneratingArtifact.set('prd');
-    const draft = this.documentExportService.buildPrdDraft(active.items, projectName, active.info ?? null);
 
     try {
+      const { deps, risks } = await this.runBacklogAnalyses();
+
+      this.generatingArtifactStep.set('Gerando PRD...');
+      let draft = this.documentExportService.buildPrdDraft(active.items, projectName, active.info ?? null);
+      if (deps) draft += this.documentExportService.buildDependencySection(deps);
+      if (risks) draft += this.documentExportService.buildRiskSection(risks);
+
       const polished = await this.geminiService.generateProjectDocument('prd', draft);
       this.generatedDoc.set({
         kind: 'prd',
@@ -675,6 +835,7 @@ ${story.testScenarios.unit}
         markdown: polished
       });
     } catch {
+      const draft = this.documentExportService.buildPrdDraft(active.items, projectName, active.info ?? null);
       this.generatedDoc.set({
         kind: 'prd',
         title: `PRD — ${projectName}`,
@@ -683,6 +844,7 @@ ${story.testScenarios.unit}
       });
     } finally {
       this.isGeneratingArtifact.set(null);
+      this.generatingArtifactStep.set(null);
     }
   }
 
@@ -690,11 +852,16 @@ ${story.testScenarios.unit}
     const active = this.activeBacklog();
     if (!active || active.items.length === 0) return;
     const projectName = active.projectName;
-
     this.isGeneratingArtifact.set('spec');
-    const draft = this.documentExportService.buildSpecDraft(active.items, projectName);
 
     try {
+      const { deps, risks } = await this.runBacklogAnalyses();
+
+      this.generatingArtifactStep.set('Gerando Spec...');
+      let draft = this.documentExportService.buildSpecDraft(active.items, projectName);
+      if (deps) draft += this.documentExportService.buildDependencySection(deps);
+      if (risks) draft += this.documentExportService.buildRiskSection(risks);
+
       const polished = await this.geminiService.generateProjectDocument('spec', draft);
       this.generatedDoc.set({
         kind: 'spec',
@@ -703,6 +870,7 @@ ${story.testScenarios.unit}
         markdown: polished
       });
     } catch {
+      const draft = this.documentExportService.buildSpecDraft(active.items, projectName);
       this.generatedDoc.set({
         kind: 'spec',
         title: `Spec — ${projectName}`,
@@ -711,6 +879,7 @@ ${story.testScenarios.unit}
       });
     } finally {
       this.isGeneratingArtifact.set(null);
+      this.generatingArtifactStep.set(null);
     }
   }
 

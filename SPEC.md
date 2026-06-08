@@ -1,6 +1,6 @@
 # SPEC — PO Agent AI
 
-**Versão:** 1.1  
+**Versão:** 1.2  
 **Stack:** Angular 20 · Groq SDK · Supabase · TailwindCSS · pdfjs-dist · mammoth  
 **Atualizado:** jun/2026
 
@@ -25,14 +25,8 @@ Browser (Angular SPA)
 │
 ├── Services
 │   ├── GeminiService        (Groq API — chat completions JSON mode)
-│   │   ├── refineUserStoryStrategic()
-│   │   ├── processDocumentForBacklog()
-│   │   ├── generateDetailedAcceptanceCriteria()
-│   │   ├── generateAlternativeTestFormat()
-│   │   ├── generateTechnicalArtifact(type: 'doc'|'c4-diagram'|'c4-container'|'sequence-diagram')
-│   │   └── generateProjectDocument()
 │   ├── DocumentService      (PDF → text via pdfjs, DOCX → text via mammoth)
-│   └── DocumentExportService (geração e download de documentos .md)
+│   └── DocumentExportService (geração e download de documentos)
 │
 └── Models
     └── validation.model.ts  (todos os tipos da aplicação)
@@ -62,7 +56,7 @@ interface RefinedStory {
   technicalConsiderations: string[];
   identifiedDependencies: string[];
   questions: string[];
-  riskAnalysis: Risk[];          // type: Técnico | Negócio | Usabilidade | Compliance | Rollout; severity?: baixa | média | alta
+  riskAnalysis: Risk[];          // type: Técnico | Negócio | Usabilidade
   model?: string;
 }
 ```
@@ -115,6 +109,9 @@ Retorno tipado <T>
 | `generateDetailedAcceptanceCriteria` | `RefinedStory` | string (Gherkin expandido) | 0.5 |
 | `generateAlternativeTestFormat` | `TestScenarios`, format | string (código Jest/Mocha) | 0.2 |
 | `generateTechnicalArtifact` | considerações, deps, `'doc'\|'c4-diagram'\|'c4-container'\|'sequence-diagram'` | string (md ou mermaid) | 0.3 |
+| `analyzeBacklogDependencies` | `BacklogItem[]` | `BacklogDependencyAnalysis` | auto |
+| `analyzeBacklogRisks` | `BacklogItem[]` | `BacklogRiskAnalysis` | auto |
+| `generateProjectDocument` | `DocumentKind`, draft enriquecido | string (md polido) | 0.3 |
 
 ---
 
@@ -135,31 +132,12 @@ Logout   → supabase.auth.signOut() → redirect /login
 
 ## 5. Persistência
 
-| Dado | Onde | Status |
-|------|------|--------|
-| Backlogs / itens | `localStorage` → key `userStoryBacklogs` | ⚠️ Migrar para Supabase (US-001) |
-| Histórico de análises | `localStorage` (por sessão) | atual |
-| Autenticação | Supabase (cookie/token via SDK) | atual |
-| Info do projeto | `localStorage` embutido no `Backlog` | ⚠️ Migrar para Supabase (US-001) |
-| Personas | `localStorage` (planejado: Supabase) | US-015 |
-| Calibração de estimativas | `localStorage` (planejado: Supabase) | US-011 |
-
-### Plano de migração para Supabase (US-001)
-```
-BacklogService (novo)
-  ├── saveBacklog(userId, backlog) → supabase.from('backlogs').upsert()
-  ├── loadBacklogs(userId)        → supabase.from('backlogs').select()
-  └── deleteBacklog(id)           → supabase.from('backlogs').delete()
-
-Tabela: backlogs
-  id          uuid primary key
-  user_id     uuid references auth.users
-  name        text
-  items       jsonb   (array de BacklogItem serializado)
-  project_info jsonb
-  created_at  timestamptz
-  updated_at  timestamptz
-```
+| Dado | Onde |
+|------|------|
+| Backlogs / itens | `localStorage` → key `userStoryBacklogs` |
+| Histórico de análises | `localStorage` (por sessão) |
+| Autenticação | Supabase (cookie/token via SDK) |
+| Info do projeto | `localStorage` embutido no `Backlog` |
 
 ---
 
@@ -185,9 +163,29 @@ File → FileReader.readAsArrayBuffer
 ## 7. Exportação de Documentos
 
 `DocumentExportService` gera arquivos para download:
-- **PRD**: Markdown estruturado com todas as histórias do backlog
-- **Spec**: Especificação técnica com tarefas e estimativas
+- **PRD**: Markdown estruturado com histórias + seção de dependências + seção de riscos (geradas por IA antes da exportação)
+- **Spec**: Especificação técnica com tarefas e estimativas + seção de dependências + seção de riscos
 - **Individual**: Exportação de story única
+- **`.feature`**: Arquivo Gherkin por história (Cucumber/Playwright)
+
+### Fluxo enriquecido de geração de documentos
+
+```
+Clique em "Gerar PRD" ou "Gerar Spec"
+    ↓
+analyzeBacklogDependencies() ┐ em paralelo
+analyzeBacklogRisks()        ┘ (Promise.all)
+    ↓
+buildPrdDraft() / buildSpecDraft()
+    + buildDependencySection(deps)
+    + buildRiskSection(risks)
+    ↓
+generateProjectDocument(kind, draftEnriquecido)  ← IA polishing
+    ↓
+modal DocumentViewer com download
+```
+
+O botão mostra o passo atual: **"Analisando dependências e riscos..."** → **"Gerando PRD..."**
 
 ---
 
@@ -228,29 +226,11 @@ npm run preview
 
 ---
 
-## 10. Novos Serviços Planejados
-
-| Serviço | Responsabilidade | Story |
-|---------|-----------------|-------|
-| `BacklogService` | Abstração de persistência localStorage → Supabase | US-001 |
-| `ToastService` | Notificações de erro/sucesso centralizadas | US-002 |
-| `GherkinStudioService` | Geração e export de arquivos `.feature` BDD | US-009 |
-| `RiskAnalysisService` | Risk Radar estruturado por história | US-010 |
-| `EstimationService` | Estimativa argumentada com calibração por equipe | US-011 |
-| `ArchitectureLensService` | Geração de C4 + diagramas de sequência | US-012 |
-| `BacklogHealthService` | Monitor de qualidade e score contínuo | US-013 |
-| `DorGatekeeperService` | Validação de DoR configurável | US-014 |
-| `PersonaService` | CRUD de personas + contexto para geração | US-015 |
-| `SprintSimulationService` | Simulação de sprint com 3 cenários | US-016 |
-
----
-
-## 11. Convenções
+## 10. Convenções
 
 - Todos os componentes: `standalone: true`, `ChangeDetectionStrategy.OnPush`
 - DI via `inject()` — sem constructor injection
 - Estado via Signals: `signal()`, `computed()`, sem RxJS nos componentes
 - Templates: Angular 17+ block syntax (`@if`, `@for` com `track`)
 - Sem `console.log` em produção
-- Erros de IA exibidos ao usuário via `ToastService` (não alert/console)
-- Novos campos em `RefinedStory` sempre opcionais (`campo?: tipo`) — nunca remover campos existentes
+- Erros de IA exibidos ao usuário com mensagem amigável
