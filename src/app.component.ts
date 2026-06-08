@@ -576,7 +576,7 @@ ${story.testScenarios.unit}
     this.error.set(null);
 
     try {
-      // Extrai texto de todos os arquivos primeiro
+      // 1. Extrai texto de todos os arquivos
       this.importStep.set('Lendo documentos...');
       const fileContents = await Promise.all(
         files.map(async file => ({
@@ -585,34 +585,31 @@ ${story.testScenarios.unit}
         }))
       );
 
-      // Roda extração de backlog + extração de info do projeto em paralelo
-      this.importStep.set('Extraindo histórias e informações do projeto...');
-      const combinedContent = fileContents.map(f => f.content).join('\n\n---\n\n');
-
-      const [resultsFromAllFiles, extractedInfo] = await Promise.all([
-        Promise.all(
-          fileContents.map(async ({ name, content }) => {
-            try {
-              return await this.geminiService.processDocumentForBacklog(content);
-            } catch (err) {
-              throw new Error(`Falha ao processar o arquivo ${name}: ${err}`);
-            }
-          })
-        ),
-        this.geminiService.extractProjectInfo(combinedContent)
-      ]);
+      // 2. Extrai histórias (crítico — sequencial por arquivo)
+      this.importStep.set('Extraindo histórias de usuário...');
+      const resultsFromAllFiles: ExtractedBacklogItems[][] = [];
+      for (const { name, content } of fileContents) {
+        try {
+          const result = await this.geminiService.processDocumentForBacklog(content);
+          resultsFromAllFiles.push(result);
+        } catch (err) {
+          throw new Error(`Falha ao processar o arquivo "${name}". Verifique se o conteúdo é legível.`);
+        }
+      }
 
       const allExtractedItems = resultsFromAllFiles.flat();
 
-      if (allExtractedItems.length === 0 && allExtractedItems.every(group => group.refinedStories.length === 0)) {
+      if (allExtractedItems.length === 0 || allExtractedItems.every(group => group.refinedStories.length === 0)) {
         this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos fornecidos.');
         return;
       }
 
       this.addExtractedItemsToBacklog(allExtractedItems);
 
-      // Lida com informações do projeto extraídas
-      this.importStep.set('Verificando informações do projeto...');
+      // 3. Extrai info do projeto (opcional — não bloqueia se falhar)
+      this.importStep.set('Analisando informações do projeto...');
+      const combinedContent = fileContents.map(f => f.content).join('\n\n---\n\n');
+      const extractedInfo = await this.geminiService.extractProjectInfo(combinedContent);
       const hasExtractedInfo = Object.values(extractedInfo).some(v => v && (v as string).trim().length > 0);
       if (hasExtractedInfo) {
         const active = this.activeBacklog();
@@ -657,8 +654,9 @@ ${story.testScenarios.unit}
       if (fileInput) fileInput.value = '';
 
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido.';
       console.error('Error processing imported files:', err);
-      this.importError.set('A IA falhou em processar um ou mais documentos. Verifique o conteúdo ou tente novamente.');
+      this.importError.set(msg);
     } finally {
       this.isImporting.set(false);
       this.importStep.set(null);
