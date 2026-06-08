@@ -62,6 +62,7 @@ export class AppComponent implements OnInit {
   // Document Generation State
   generatedDoc = signal<GeneratedDocument | null>(null);
   isGeneratingArtifact = signal<'prd' | 'spec' | null>(null);
+  generatingArtifactStep = signal<string | null>(null);
 
   // Backlog Analysis Modal
   isAnalyzingBacklog = signal<'dependencies' | 'risks' | null>(null);
@@ -664,15 +665,35 @@ ${story.testScenarios.unit}
   }
 
   // Document Generation
+  private async runBacklogAnalyses() {
+    const items = this.activeBacklog()?.items ?? [];
+    if (!items.length) return { deps: null, risks: null };
+    try {
+      this.generatingArtifactStep.set('Analisando dependências e riscos...');
+      const [deps, risks] = await Promise.all([
+        this.geminiService.analyzeBacklogDependencies(items),
+        this.geminiService.analyzeBacklogRisks(items)
+      ]);
+      return { deps, risks };
+    } catch {
+      return { deps: null, risks: null };
+    }
+  }
+
   async generatePrd(): Promise<void> {
     const active = this.activeBacklog();
     if (!active || active.items.length === 0) return;
     const projectName = active.projectName;
-
     this.isGeneratingArtifact.set('prd');
-    const draft = this.documentExportService.buildPrdDraft(active.items, projectName, active.info ?? null);
 
     try {
+      const { deps, risks } = await this.runBacklogAnalyses();
+
+      this.generatingArtifactStep.set('Gerando PRD...');
+      let draft = this.documentExportService.buildPrdDraft(active.items, projectName, active.info ?? null);
+      if (deps) draft += this.documentExportService.buildDependencySection(deps);
+      if (risks) draft += this.documentExportService.buildRiskSection(risks);
+
       const polished = await this.geminiService.generateProjectDocument('prd', draft);
       this.generatedDoc.set({
         kind: 'prd',
@@ -681,6 +702,7 @@ ${story.testScenarios.unit}
         markdown: polished
       });
     } catch {
+      const draft = this.documentExportService.buildPrdDraft(active.items, projectName, active.info ?? null);
       this.generatedDoc.set({
         kind: 'prd',
         title: `PRD — ${projectName}`,
@@ -689,6 +711,7 @@ ${story.testScenarios.unit}
       });
     } finally {
       this.isGeneratingArtifact.set(null);
+      this.generatingArtifactStep.set(null);
     }
   }
 
@@ -696,11 +719,16 @@ ${story.testScenarios.unit}
     const active = this.activeBacklog();
     if (!active || active.items.length === 0) return;
     const projectName = active.projectName;
-
     this.isGeneratingArtifact.set('spec');
-    const draft = this.documentExportService.buildSpecDraft(active.items, projectName);
 
     try {
+      const { deps, risks } = await this.runBacklogAnalyses();
+
+      this.generatingArtifactStep.set('Gerando Spec...');
+      let draft = this.documentExportService.buildSpecDraft(active.items, projectName);
+      if (deps) draft += this.documentExportService.buildDependencySection(deps);
+      if (risks) draft += this.documentExportService.buildRiskSection(risks);
+
       const polished = await this.geminiService.generateProjectDocument('spec', draft);
       this.generatedDoc.set({
         kind: 'spec',
@@ -709,6 +737,7 @@ ${story.testScenarios.unit}
         markdown: polished
       });
     } catch {
+      const draft = this.documentExportService.buildSpecDraft(active.items, projectName);
       this.generatedDoc.set({
         kind: 'spec',
         title: `Spec — ${projectName}`,
@@ -717,6 +746,7 @@ ${story.testScenarios.unit}
       });
     } finally {
       this.isGeneratingArtifact.set(null);
+      this.generatingArtifactStep.set(null);
     }
   }
 

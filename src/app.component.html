@@ -39,22 +39,16 @@
                 <span>Riscos</span>
               </button>
               <button (click)="generatePrd()" [disabled]="!!isGeneratingArtifact()"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-700/60 hover:bg-indigo-600/80 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-200 text-xs font-semibold transition">
-                @if (isGeneratingArtifact() === 'prd') {
-                  <i class="fas fa-spinner fa-spin text-xs"></i>
-                } @else {
-                  <i class="fas fa-file-alt text-xs"></i>
-                }
-                <span>Gerar PRD.md</span>
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-700/60 hover:bg-indigo-600/80 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-200 text-xs font-semibold transition"
+                [title]="isGeneratingArtifact() === 'prd' && generatingArtifactStep() ? generatingArtifactStep()! : 'Gera PRD com análise de dependências e riscos'">
+                <i class="fas text-xs" [class]="isGeneratingArtifact() === 'prd' ? 'fa-spinner fa-spin' : 'fa-file-alt'"></i>
+                <span>{{ isGeneratingArtifact() === 'prd' ? (generatingArtifactStep() ?? 'Gerando...') : 'Gerar PRD.md' }}</span>
               </button>
               <button (click)="generateSpec()" [disabled]="!!isGeneratingArtifact()"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-700/60 hover:bg-teal-600/80 disabled:opacity-50 disabled:cursor-not-allowed text-teal-200 text-xs font-semibold transition">
-                @if (isGeneratingArtifact() === 'spec') {
-                  <i class="fas fa-spinner fa-spin text-xs"></i>
-                } @else {
-                  <i class="fas fa-code text-xs"></i>
-                }
-                <span>Gerar spec.md</span>
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-700/60 hover:bg-teal-600/80 disabled:opacity-50 disabled:cursor-not-allowed text-teal-200 text-xs font-semibold transition"
+                [title]="isGeneratingArtifact() === 'spec' && generatingArtifactStep() ? generatingArtifactStep()! : 'Gera Spec com análise de dependências e riscos'">
+                <i class="fas text-xs" [class]="isGeneratingArtifact() === 'spec' ? 'fa-spinner fa-spin' : 'fa-code'"></i>
+                <span>{{ isGeneratingArtifact() === 'spec' ? (generatingArtifactStep() ?? 'Gerando...') : 'Gerar spec.md' }}</span>
               </button>
             }
             <button (click)="showAnalyzer()"
