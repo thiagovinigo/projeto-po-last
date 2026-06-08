@@ -146,11 +146,14 @@ export class GeminiService {
       4. **Geração de User Stories:** Para cada Feature, gere uma ou mais User Stories detalhadas e refinadas.
       5. **Refinamento Completo:** Cada User Story DEVE ser completamente refinada com: título, Épico, Feature, persona, narrativa de negócio, critérios de aceite (BDD), resumo, cenários de teste (E2E, integração, unitário), estimativa, tarefas de desenvolvimento, casos extremos, considerações técnicas, dependências, dúvidas e análise de riscos.
 
-      **REGRAS CRÍTICAS:**
-      - Aplique todas as regras de qualidade do Refinamento Estratégico.
-      - O campo 'model' de cada história deve ser '${MODEL}'.
-      - Estimativas consistentes: storyEstimate = tasksTotalEstimate.
-      - Critérios de aceite em Gherkin com palavras-chave em negrito.
+      **REGRAS CRÍTICAS (idênticas ao Refinamento Estratégico individual):**
+      1. O campo 'model' de cada história deve ser '${MODEL}'.
+      2. Estimativas consistentes: storyEstimate DEVE ser idêntico a tasksTotalEstimate.
+      3. Critérios de aceite em Gherkin com '### Cenário:' e palavras-chave (**Dado**, **Quando**, **Então**, **E**) em negrito.
+      4. 'acceptanceCriteriaSummary' DEVE ser bullet list markdown.
+      5. Cenários de teste em três níveis: E2E (Cypress), Integração e Unitário em blocos de código markdown.
+      6. 'storyEstimateJustification' com análise detalhada justificando a estimativa.
+      7. 'riskAnalysis' com 'type' ('Técnico', 'Negócio', 'Usabilidade', 'Compliance' ou 'Rollout'), 'severity' ('baixa', 'média' ou 'alta'), 'description' e 'mitigationSuggestion'.
 
       **JSON SCHEMA OBRIGATÓRIO:**
       Retorne um objeto JSON com a seguinte estrutura (wrapper obrigatório):
@@ -167,18 +170,18 @@ export class GeminiService {
                 "userPersona": "string",
                 "businessNarrative": "string",
                 "interfaceDetails": "string",
-                "acceptanceCriteria": "string",
-                "acceptanceCriteriaSummary": "string",
-                "testScenarios": { "e2e": "string", "integration": "string", "unit": "string" },
-                "storyEstimate": "string",
+                "acceptanceCriteria": "string (formato Gherkin)",
+                "acceptanceCriteriaSummary": "string (bullet list markdown)",
+                "testScenarios": { "e2e": "string (código Cypress em markdown)", "integration": "string (código em markdown)", "unit": "string (código em markdown)" },
+                "storyEstimate": "string (ex: 12h)",
                 "storyEstimateJustification": "string",
                 "developmentTasks": [{"name":"string","responsibility":"string","description":"string","justification":"string","estimate":"string","technicalJustification":"string"}],
-                "tasksTotalEstimate": "string",
+                "tasksTotalEstimate": "string (ex: 12h)",
                 "potentialEdgeCases": ["string"],
                 "technicalConsiderations": ["string"],
                 "identifiedDependencies": ["string"],
                 "questions": ["string"],
-                "riskAnalysis": [{"type":"string","description":"string","mitigationSuggestion":"string"}],
+                "riskAnalysis": [{"type":"Técnico|Negócio|Usabilidade|Compliance|Rollout","severity":"baixa|média|alta","description":"string","mitigationSuggestion":"string"}],
                 "model": "${MODEL}"
               }
             ]
@@ -186,7 +189,7 @@ export class GeminiService {
         ]
       }
 
-      **CRITICAL: Output ONLY valid JSON. No markdown fences. No explanations.**
+      **CRITICAL: JSON OUTPUT MUST BE VALID.** Output ONLY the JSON, no markdown fences, no explanations.
     `;
 
     const result = await this.generateValidation<{ items: ExtractedBacklogItems[] }>(documentContent, systemInstruction);

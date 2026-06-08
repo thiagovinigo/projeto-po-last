@@ -1,5 +1,5 @@
 {
-  "buildCommand": "sed -i \"s|__RAILWAY_API_URL__|$RAILWAY_API_URL|g\" src/environments/environment.prod.ts && npm run build -- --configuration=production",
+  "buildCommand": "sed -i \"s|__GROQ_API_KEY__|$GROQ_API_KEY|g\" src/environments/environment.prod.ts && npm run build -- --configuration=production",
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,

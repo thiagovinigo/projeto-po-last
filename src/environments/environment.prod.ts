@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
-  apiKey: '',                          // não usado em prod — chave fica no Railway
-  groqApiUrl: '__RAILWAY_API_URL__',   // CI substitui: https://po-agent-api.railway.app
+  apiKey: '__GROQ_API_KEY__',      // Vercel injeta via env var GROQ_API_KEY no build
+  groqApiUrl: '',                   // Railway não usado — SDK direto
   supabaseUrl: 'https://imsncpmhtduknumrflod.supabase.co',
   supabaseAnonKey: 'sb_publishable_EblkhnO-cywfXnBxQW0Qgg_ntrmDyRX',
 };
