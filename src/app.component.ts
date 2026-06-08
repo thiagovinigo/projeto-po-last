@@ -585,19 +585,13 @@ ${story.testScenarios.unit}
         }))
       );
 
-      // 2. Extrai histórias (crítico — sequencial por arquivo)
-      this.importStep.set('Extraindo histórias de usuário...');
-      const resultsFromAllFiles: ExtractedBacklogItems[][] = [];
-      for (const { name, content } of fileContents) {
-        try {
-          const result = await this.geminiService.processDocumentForBacklog(content);
-          resultsFromAllFiles.push(result);
-        } catch (err) {
-          throw new Error(`Falha ao processar o arquivo "${name}". Verifique se o conteúdo é legível.`);
-        }
-      }
+      // 2. Combina todos os arquivos em contexto único e extrai histórias
+      const combinedContent = fileContents
+        .map(f => `=== DOCUMENTO: ${f.name} ===\n\n${f.content}`)
+        .join('\n\n---\n\n');
 
-      const allExtractedItems = resultsFromAllFiles.flat();
+      this.importStep.set('Extraindo histórias de usuário...');
+      const allExtractedItems = await this.geminiService.processDocumentForBacklog(combinedContent);
 
       if (allExtractedItems.length === 0 || allExtractedItems.every(group => group.refinedStories.length === 0)) {
         this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos fornecidos.');
@@ -608,7 +602,6 @@ ${story.testScenarios.unit}
 
       // 3. Extrai info do projeto (opcional — não bloqueia se falhar)
       this.importStep.set('Analisando informações do projeto...');
-      const combinedContent = fileContents.map(f => f.content).join('\n\n---\n\n');
       const extractedInfo = await this.geminiService.extractProjectInfo(combinedContent);
       const hasExtractedInfo = Object.values(extractedInfo).some(v => v && (v as string).trim().length > 0);
       if (hasExtractedInfo) {
