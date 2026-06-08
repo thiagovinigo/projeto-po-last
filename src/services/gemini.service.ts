@@ -135,7 +135,43 @@ export class GeminiService {
     return this.generateValidation<StrategicRefinementResult>(story, systemInstruction);
   }
 
+  private splitDocumentIntoChunks(content: string, maxChars = 4000): string[] {
+    if (content.length <= maxChars) return [content];
+
+    const chunks: string[] = [];
+    // Tenta dividir por quebras de linha/parágrafos para não cortar no meio de uma frase
+    const paragraphs = content.split(/\n{2,}/);
+    let current = '';
+
+    for (const para of paragraphs) {
+      if ((current + para).length > maxChars && current.length > 0) {
+        chunks.push(current.trim());
+        current = para + '\n\n';
+      } else {
+        current += para + '\n\n';
+      }
+    }
+    if (current.trim()) chunks.push(current.trim());
+    return chunks;
+  }
+
   async processDocumentForBacklog(documentContent: string): Promise<ExtractedBacklogItems[]> {
+    const chunks = this.splitDocumentIntoChunks(documentContent);
+
+    if (chunks.length > 1) {
+      // Processa cada chunk e mescla os resultados
+      const allItems: ExtractedBacklogItems[] = [];
+      for (const chunk of chunks) {
+        const result = await this.processDocumentChunk(chunk);
+        allItems.push(...result);
+      }
+      return allItems;
+    }
+
+    return this.processDocumentChunk(documentContent);
+  }
+
+  private async processDocumentChunk(documentContent: string): Promise<ExtractedBacklogItems[]> {
     const systemInstruction = `
       Você é um "Agente PO Autônomo", especialista sênior em Gerenciamento de Produtos. Analise documentos de requisitos e decomponha em backlog acionável.
 
@@ -193,7 +229,7 @@ export class GeminiService {
     `;
 
     const result = await this.generateValidation<{ items: ExtractedBacklogItems[] }>(documentContent, systemInstruction);
-    return result.items;
+    return result.items ?? [];
   }
 
   async generateDetailedAcceptanceCriteria(story: RefinedStory): Promise<string> {
