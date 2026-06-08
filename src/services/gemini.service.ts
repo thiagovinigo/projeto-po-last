@@ -11,14 +11,46 @@ const MODEL = 'llama-3.3-70b-versatile';
   providedIn: 'root'
 })
 export class GeminiService {
-  private groq: Groq;
+  private groq: Groq | null = null;
+  private readonly useProxy = environment.production && !!environment.groqApiUrl;
+  private readonly proxyUrl = environment.groqApiUrl
+    ? `${environment.groqApiUrl}/api/groq/chat`
+    : '';
 
   constructor() {
-    const apiKey = environment.apiKey;
-    if (!apiKey) {
-      throw new Error('API key not configured. Set apiKey in src/environments/environment.ts');
+    if (!this.useProxy) {
+      const apiKey = environment.apiKey;
+      if (!apiKey || apiKey === '__GROQ_API_KEY__') {
+        throw new Error('API key not configured. Set apiKey in src/environments/environment.ts');
+      }
+      this.groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
     }
-    this.groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+  }
+
+  // Unified chat call — SDK in dev, proxy in prod
+  private async chat(params: {
+    messages: { role: string; content: string }[];
+    response_format?: { type: string };
+    temperature?: number;
+    model?: string;
+  }): Promise<{ choices: { message: { content: string | null } }[] }> {
+    const body = { model: MODEL, ...params };
+
+    if (this.useProxy) {
+      const res = await fetch(this.proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? `Proxy error ${res.status}`);
+      }
+      return res.json();
+    }
+
+    const result = await this.groq!.chat.completions.create(body as Parameters<Groq['chat']['completions']['create']>[0]);
+    return result as unknown as { choices: { message: { content: string | null } }[] };
   }
 
   async refineUserStoryStrategic(story: string): Promise<StrategicRefinementResult> {
@@ -190,7 +222,7 @@ export class GeminiService {
     `;
 
     try {
-      const response = await this.groq.chat.completions.create({
+      const response = await this.chat({
         model: MODEL,
         messages: [
           { role: 'system', content: systemInstruction },
@@ -228,7 +260,7 @@ export class GeminiService {
     `;
 
     try {
-      const response = await this.groq.chat.completions.create({
+      const response = await this.chat({
         model: MODEL,
         messages: [
           { role: 'system', content: systemInstruction },
@@ -288,7 +320,7 @@ export class GeminiService {
     const prompt = `${context}\n\nGere o artefato solicitado.`;
 
     try {
-      const response = await this.groq.chat.completions.create({
+      const response = await this.chat({
         model: MODEL,
         messages: [
           { role: 'system', content: systemInstruction },
@@ -416,7 +448,7 @@ Responda APENAS com o JSON. Sem markdown. Sem explicações.`;
     const prompt = `Aprimore o seguinte rascunho de ${label}:\n\n${draftMarkdown}`;
 
     try {
-      const response = await this.groq.chat.completions.create({
+      const response = await this.chat({
         model: MODEL,
         messages: [
           { role: 'system', content: systemInstruction },
@@ -436,7 +468,7 @@ Responda APENAS com o JSON. Sem markdown. Sem explicações.`;
     let correctionResponseText = '';
 
     try {
-      const response = await this.groq.chat.completions.create({
+      const response = await this.chat({
         model: MODEL,
         messages: [
           { role: 'system', content: systemInstruction },
@@ -461,7 +493,7 @@ Responda APENAS com o JSON. Sem markdown. Sem explicações.`;
         const correctionSystemInstruction = `You are an automated JSON repair tool. Fix the invalid JSON and return ONLY the corrected JSON string. Output must start with '{' or '[' and end with '}' or ']'. No markdown fences. No explanations.`;
         const correctionPrompt = `Fix this invalid JSON and return only the valid JSON:\n\n${jsonText}`;
 
-        const correctionResponse = await this.groq.chat.completions.create({
+        const correctionResponse = await this.chat({
           model: MODEL,
           messages: [
             { role: 'system', content: correctionSystemInstruction },
