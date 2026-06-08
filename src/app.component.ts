@@ -45,8 +45,12 @@ export class AppComponent implements OnInit {
   alternativeTestResults = signal<Record<number, { format: string; code: string } | null>>({});
 
   // Technical docs state
-  isGeneratingDoc = signal<Record<number, { type: 'doc' | 'c4-diagram' } | null>>({});
-  technicalDocumentation = signal<Record<number, { type: 'doc' | 'c4-diagram', content: string } | null>>({});
+  isGeneratingDoc = signal<Record<number, { type: 'doc' | 'c4-diagram' | 'c4-container' | 'sequence-diagram' } | null>>({});
+  technicalDocumentation = signal<Record<number, { type: 'doc' | 'c4-diagram' | 'c4-container' | 'sequence-diagram', content: string } | null>>({});
+
+  // Inline edit state
+  inlineEditId = signal<number | null>(null);
+  inlineEditTitle = signal<string>('');
   isGeneratingDetailedAC = signal<Record<number, boolean>>({});
 
   // Backlog State
@@ -250,6 +254,44 @@ export class AppComponent implements OnInit {
     this.editingStory.set(null);
   }
 
+  startInlineEdit(story: BacklogItem): void {
+    this.inlineEditId.set(story.id);
+    this.inlineEditTitle.set(story.title);
+  }
+
+  saveInlineEdit(): void {
+    const id = this.inlineEditId();
+    const title = this.inlineEditTitle().trim();
+    const active = this.activeBacklog();
+    if (!id || !title || !active) { this.cancelInlineEdit(); return; }
+    this.backlogs.update(backlogs =>
+      backlogs.map(b =>
+        b.projectName === active.projectName
+          ? { ...b, items: b.items.map(item => item.id === id ? { ...item, title } : item) }
+          : b
+      )
+    );
+    this.saveBacklogsToStorage();
+    this.cancelInlineEdit();
+  }
+
+  cancelInlineEdit(): void {
+    this.inlineEditId.set(null);
+    this.inlineEditTitle.set('');
+  }
+
+  downloadGherkinFeature(story: RefinedStory): void {
+    const slug = story.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const featureContent = `Feature: ${story.title}\n\n  ${story.userPersona}\n\n${story.acceptanceCriteria}`;
+    const blob = new Blob([featureContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug}.feature`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   viewStoryFromBacklog(story: BacklogItem): void {
     const result: StrategicRefinementResult = {
       validationType: 'strategic',
@@ -426,7 +468,7 @@ ${story.testScenarios.unit}
     }
   }
 
-  async generateTechnicalArtifact(story: RefinedStory, storyIndex: number, type: 'doc' | 'c4-diagram'): Promise<void> {
+  async generateTechnicalArtifact(story: RefinedStory, storyIndex: number, type: 'doc' | 'c4-diagram' | 'c4-container' | 'sequence-diagram'): Promise<void> {
     this.isGeneratingDoc.update(s => ({ ...s, [storyIndex]: { type } }));
     this.technicalDocumentation.update(r => ({ ...r, [storyIndex]: null }));
 
