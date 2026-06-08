@@ -1,7 +1,8 @@
 # SPEC — PO Agent AI
 
-**Versão:** 1.0  
-**Stack:** Angular 20 · Groq SDK · Supabase · TailwindCSS · pdfjs-dist · mammoth
+**Versão:** 1.2  
+**Stack:** Angular 20 · Groq SDK · Supabase · TailwindCSS · pdfjs-dist · mammoth  
+**Atualizado:** jun/2026
 
 ---
 
@@ -105,9 +106,12 @@ Retorno tipado <T>
 |--------|---------|-------|------|
 | `refineUserStoryStrategic` | string (descrição) | `StrategicRefinementResult` | 0.4 |
 | `processDocumentForBacklog` | string (texto doc) | `ExtractedBacklogItems[]` | 0.4 |
-| `generateDetailedAcceptanceCriteria` | `RefinedStory` | string (Gherkin) | 0.5 |
-| `generateAlternativeTestFormat` | `TestScenarios`, format | string (código) | 0.2 |
-| `generateTechnicalArtifact` | considerações, deps, type | string (md ou mermaid) | 0.3 |
+| `generateDetailedAcceptanceCriteria` | `RefinedStory` | string (Gherkin expandido) | 0.5 |
+| `generateAlternativeTestFormat` | `TestScenarios`, format | string (código Jest/Mocha) | 0.2 |
+| `generateTechnicalArtifact` | considerações, deps, `'doc'\|'c4-diagram'\|'c4-container'\|'sequence-diagram'` | string (md ou mermaid) | 0.3 |
+| `analyzeBacklogDependencies` | `BacklogItem[]` | `BacklogDependencyAnalysis` | auto |
+| `analyzeBacklogRisks` | `BacklogItem[]` | `BacklogRiskAnalysis` | auto |
+| `generateProjectDocument` | `DocumentKind`, draft enriquecido | string (md polido) | 0.3 |
 
 ---
 
@@ -159,9 +163,29 @@ File → FileReader.readAsArrayBuffer
 ## 7. Exportação de Documentos
 
 `DocumentExportService` gera arquivos para download:
-- **PRD**: Markdown estruturado com todas as histórias do backlog
-- **Spec**: Especificação técnica com tarefas e estimativas
+- **PRD**: Markdown estruturado com histórias + seção de dependências + seção de riscos (geradas por IA antes da exportação)
+- **Spec**: Especificação técnica com tarefas e estimativas + seção de dependências + seção de riscos
 - **Individual**: Exportação de story única
+- **`.feature`**: Arquivo Gherkin por história (Cucumber/Playwright)
+
+### Fluxo enriquecido de geração de documentos
+
+```
+Clique em "Gerar PRD" ou "Gerar Spec"
+    ↓
+analyzeBacklogDependencies() ┐ em paralelo
+analyzeBacklogRisks()        ┘ (Promise.all)
+    ↓
+buildPrdDraft() / buildSpecDraft()
+    + buildDependencySection(deps)
+    + buildRiskSection(risks)
+    ↓
+generateProjectDocument(kind, draftEnriquecido)  ← IA polishing
+    ↓
+modal DocumentViewer com download
+```
+
+O botão mostra o passo atual: **"Analisando dependências e riscos..."** → **"Gerando PRD..."**
 
 ---
 

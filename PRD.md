@@ -82,12 +82,18 @@ Um agente de IA especializado em Product Management que, a partir de uma frase o
 - Múltiplos backlogs por conta
 - Informações do projeto editáveis (nome, contexto, objetivos)
 
-### 3.6 Geração de Documentos
-- PRD (Product Requirements Document) a partir do backlog
-- Especificação técnica a partir do backlog
-- Diagramas C4 (arquitetura de contêineres) via Mermaid
+### 3.6 Geração de Documentos Enriquecidos
+- PRD e Spec **enriquecidos com análise de IA antes da geração**: ao clicar em "Gerar PRD" ou "Gerar Spec", o sistema roda automaticamente análise de dependências + análise de riscos em paralelo e injeta os resultados no documento
+- Diagramas C4 Contexto, C4 Contêineres e Sequência via Mermaid
 - Documentação técnica em Markdown
+- Export de critérios de aceite como arquivo `.feature` (Cucumber/Playwright)
 - Exportação para arquivo
+
+### 3.7 Análise de Backlog (IA)
+- **Análise de Dependências**: mapa de inter-dependências entre histórias, caminho crítico, dependências circulares, dependências externas por história
+- **Análise de Riscos**: panorama consolidado — nível geral (baixo/médio/alto/crítico), hotspots por épico/feature, top riscos com mitigação
+- Ambas acessíveis via botões no header do projeto, com modal estruturado
+- Resultados automaticamente incorporados na geração de PRD e Spec
 
 ### 3.7 Ferramentas Auxiliares
 - Expansão detalhada de critérios de aceite
