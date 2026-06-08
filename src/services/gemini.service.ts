@@ -44,7 +44,7 @@ export class GeminiService {
       9.  **Qualidade das Dúvidas:** As perguntas no campo 'questions' DEVEM ser claras, acionáveis e direcionadas a pontos específicos.
       10. **Modelo de IA**: O campo 'model' deve ser preenchido com '${MODEL}'.
       11. **Justificativa da Estimativa Detalhada:** O campo 'storyEstimateJustification' deve fornecer análise detalhada justificando a estimativa total.
-      12. **Análise de Riscos Abrangente:** O campo 'riskAnalysis' DEVE conter lista de riscos potenciais com 'type' ('Técnico', 'Negócio', ou 'Usabilidade'), 'description' e 'mitigationSuggestion'.
+      12. **Análise de Riscos Abrangente:** O campo 'riskAnalysis' DEVE conter lista de riscos potenciais com 'type' ('Técnico', 'Negócio', 'Usabilidade', 'Compliance' ou 'Rollout'), 'severity' ('baixa', 'média' ou 'alta') e 'mitigationSuggestion'. Use 'Compliance' para riscos de LGPD/GDPR/PCI e 'Rollout' para riscos de deploy/feature-flag/rollback.
 
       **JSON SCHEMA OBRIGATÓRIO:**
       Retorne um objeto JSON com exatamente esta estrutura:
@@ -86,7 +86,8 @@ export class GeminiService {
             "questions": ["string"],
             "riskAnalysis": [
               {
-                "type": "Técnico|Negócio|Usabilidade",
+                "type": "Técnico|Negócio|Usabilidade|Compliance|Rollout",
+                "severity": "baixa|média|alta",
                 "description": "string",
                 "mitigationSuggestion": "string"
               }
@@ -243,7 +244,7 @@ export class GeminiService {
     }
   }
 
-  async generateTechnicalArtifact(technicalConsiderations: string[], identifiedDependencies: string[], type: 'doc' | 'c4-diagram'): Promise<string> {
+  async generateTechnicalArtifact(technicalConsiderations: string[], identifiedDependencies: string[], type: 'doc' | 'c4-diagram' | 'c4-container' | 'sequence-diagram'): Promise<string> {
     const considerationsText = technicalConsiderations.length > 0
       ? `### Considerações Técnicas\n${technicalConsiderations.map(c => `- ${c}`).join('\n')}`
       : '';
@@ -259,13 +260,31 @@ export class GeminiService {
         A saída deve ser APENAS o conteúdo markdown.
     `;
 
-    const instructionDiagram = `
+    const instructionC4Context = `
         Você é um Arquiteto de Software Sênior especialista no modelo C4 para arquitetura de software.
-        Crie um diagrama de arquitetura (preferencialmente Diagrama de Contêineres C4) usando a sintaxe C4Context do Mermaid.js.
+        Crie um Diagrama de Contexto C4 (nível 1) usando a sintaxe C4Context do Mermaid.js.
+        Mostre o sistema principal e seus usuários/atores externos. Mantenha simples — apenas o sistema e o que o rodeia.
         A saída deve ser APENAS o código Mermaid, sem o bloco de markdown \`\`\`mermaid.
     `;
 
-    const systemInstruction = type === 'doc' ? instructionDoc : instructionDiagram;
+    const instructionC4Container = `
+        Você é um Arquiteto de Software Sênior especialista no modelo C4 para arquitetura de software.
+        Crie um Diagrama de Contêineres C4 (nível 2) usando a sintaxe C4Container do Mermaid.js.
+        Mostre os contêineres do sistema (frontend, backend, banco de dados, serviços externos, filas) e como eles se comunicam.
+        A saída deve ser APENAS o código Mermaid, sem o bloco de markdown \`\`\`mermaid.
+    `;
+
+    const instructionSequence = `
+        Você é um Arquiteto de Software Sênior especialista em diagramas de sequência UML.
+        Crie um Diagrama de Sequência usando a sintaxe sequenceDiagram do Mermaid.js.
+        Mostre o fluxo principal descrito pelas considerações técnicas e dependências: atores, sistemas envolvidos, chamadas síncronas e assíncronas.
+        A saída deve ser APENAS o código Mermaid, sem o bloco de markdown \`\`\`mermaid.
+    `;
+
+    const systemInstruction = type === 'doc' ? instructionDoc
+      : type === 'c4-container' ? instructionC4Container
+      : type === 'sequence-diagram' ? instructionSequence
+      : instructionC4Context;
     const prompt = `${context}\n\nGere o artefato solicitado.`;
 
     try {

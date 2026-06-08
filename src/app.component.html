@@ -91,8 +91,28 @@
                           <div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-700/25 transition group">
                             <div class="flex items-start gap-2 flex-1 min-w-0">
                               <i class="fas fa-bookmark text-cyan-600 text-xs mt-1 shrink-0"></i>
-                              <div class="min-w-0">
-                                <p class="text-sm font-medium text-gray-200 leading-snug">{{ story.title }}</p>
+                              <div class="min-w-0 flex-1">
+                                @if (inlineEditId() === story.id) {
+                                  <div class="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      [ngModel]="inlineEditTitle()"
+                                      (ngModelChange)="inlineEditTitle.set($event)"
+                                      (keyup.enter)="saveInlineEdit()"
+                                      (keyup.escape)="cancelInlineEdit()"
+                                      class="flex-1 text-sm px-2 py-1 rounded bg-gray-700 border border-blue-500 text-white focus:outline-none"
+                                      autofocus
+                                    />
+                                    <button (click)="saveInlineEdit()" class="text-xs text-green-400 hover:text-green-300 px-1.5 py-1 rounded hover:bg-green-900/30 transition">
+                                      <i class="fas fa-check"></i>
+                                    </button>
+                                    <button (click)="cancelInlineEdit()" class="text-xs text-gray-500 hover:text-gray-300 px-1.5 py-1 rounded hover:bg-gray-700 transition">
+                                      <i class="fas fa-times"></i>
+                                    </button>
+                                  </div>
+                                } @else {
+                                  <p (dblclick)="startInlineEdit(story)" class="text-sm font-medium text-gray-200 leading-snug cursor-text" title="Duplo clique para editar">{{ story.title }}</p>
+                                }
                                 @if (story.storyEstimate) {
                                   <span class="inline-flex items-center gap-1 text-xs text-yellow-300 mt-1">
                                     <i class="fas fa-stopwatch text-yellow-400 text-xs"></i>
@@ -409,6 +429,13 @@
                                 @if ((activeTabs()[i] ?? 'bdd') === 'bdd') {
                                     <div class="flex justify-between items-center mb-3">
                                       <h4 class="font-semibold text-gray-300">Conteúdo dos Critérios</h4>
+                                      <div class="flex items-center gap-2">
+                                        <button (click)="downloadGherkinFeature(story)"
+                                                class="px-3 py-1.5 text-xs font-semibold rounded-md bg-teal-900/60 text-teal-300 hover:bg-teal-800/70 flex items-center gap-1.5 transition"
+                                                title="Exportar como arquivo .feature (Cucumber/Playwright)">
+                                            <i class="fas fa-download"></i>
+                                            <span>Export .feature</span>
+                                        </button>
                                       <button (click)="generateDetailedAC(story, i)"
                                               [disabled]="isGeneratingDetailedAC()[i]"
                                               class="px-3 py-1.5 text-xs font-semibold rounded-md bg-indigo-800/80 text-indigo-200 hover:bg-indigo-700/80 disabled:opacity-50 disabled:bg-gray-600 disabled:cursor-wait flex items-center transition-all"
@@ -421,6 +448,7 @@
                                               <span>Detalhar com IA</span>
                                           }
                                       </button>
+                                      </div>
                                     </div>
                                     <div class="prose prose-sm max-w-none text-gray-300" [innerHTML]="markdownToHtml(story.acceptanceCriteria)"></div>
                                 }
@@ -492,23 +520,31 @@
                                               <i class="fas fa-file-alt mr-2"></i> Gerar Documento
                                           </button>
                                           <button (click)="generateTechnicalArtifact(story, i, 'c4-diagram')" [disabled]="!!isGeneratingDoc()[i]" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-wait flex items-center">
-                                              <i class="fas fa-sitemap mr-2"></i> Gerar Diagrama C4 (Mermaid)
+                                              <i class="fas fa-sitemap mr-2"></i> C4 Contexto
+                                          </button>
+                                          <button (click)="generateTechnicalArtifact(story, i, 'c4-container')" [disabled]="!!isGeneratingDoc()[i]" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-purple-900/60 text-purple-300 hover:bg-purple-800/70 disabled:opacity-50 disabled:cursor-wait flex items-center">
+                                              <i class="fas fa-cubes mr-2"></i> C4 Contêineres
+                                          </button>
+                                          <button (click)="generateTechnicalArtifact(story, i, 'sequence-diagram')" [disabled]="!!isGeneratingDoc()[i]" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-indigo-900/60 text-indigo-300 hover:bg-indigo-800/70 disabled:opacity-50 disabled:cursor-wait flex items-center">
+                                              <i class="fas fa-exchange-alt mr-2"></i> Diagrama de Sequência
                                           </button>
                                       </div>
                           
                                       @if (isGeneratingDoc()[i]; as loading) {
                                         <div class="flex items-center mt-4 text-sm text-gray-400">
                                             <i class="fas fa-spinner fa-spin mr-2"></i>
-                                            <span>Gerando {{ loading.type === 'doc' ? 'documento' : 'diagrama C4' }}...</span>
+                                            <span>Gerando {{ loading.type === 'doc' ? 'documento' : loading.type === 'sequence-diagram' ? 'diagrama de sequência' : loading.type === 'c4-container' ? 'C4 Contêineres' : 'C4 Contexto' }}...</span>
                                         </div>
                                       }
-                          
+
                                       @if (technicalDocumentation()[i]; as doc) {
                                           <div class="mt-4">
                                               @if (doc.type === 'doc') {
                                                   <div class="prose prose-sm max-w-none bg-gray-900 p-4 rounded-md border border-gray-700" [innerHTML]="markdownToHtml(doc.content)"></div>
                                               } @else {
-                                                  <h5 class="font-semibold text-gray-300 mb-2">Diagrama de Arquitetura C4 (Sintaxe Mermaid)</h5>
+                                                  <h5 class="font-semibold text-gray-300 mb-2">
+                                                    {{ doc.type === 'c4-container' ? 'Diagrama C4 Contêineres' : doc.type === 'sequence-diagram' ? 'Diagrama de Sequência' : 'Diagrama C4 Contexto' }} (Sintaxe Mermaid)
+                                                  </h5>
                                                   <p class="text-xs text-gray-500 mb-2">Copie o código abaixo e cole em um editor compatível com Mermaid.js para visualizar.</p>
                                                   <div class="prose prose-sm max-w-none bg-gray-900 p-3 rounded-md whitespace-pre-wrap font-mono text-xs" [innerHTML]="markdownToHtml('```mermaid\n' + doc.content + '\n```')"></div>
                                               }
@@ -580,21 +616,32 @@
                             <div class="space-y-3 mt-2">
                               @for(risk of story.riskAnalysis; track risk.description){
                                 <div class="p-3 bg-gray-800/60 rounded-md border border-gray-700">
-                                  <div class="flex items-center mb-2">
+                                  <div class="flex items-center gap-2 mb-2 flex-wrap">
                                     @if(risk.type === 'Técnico') {
                                       <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-purple-900 text-purple-300">
-                                          <i class="fas fa-microchip text-purple-400"></i>
-                                          Risco Técnico
+                                          <i class="fas fa-microchip text-purple-400"></i>Técnico
                                       </span>
                                     } @else if (risk.type === 'Negócio') {
                                       <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-orange-900 text-orange-300">
-                                          <i class="fas fa-briefcase text-orange-400"></i>
-                                          Risco de Negócio
+                                          <i class="fas fa-briefcase text-orange-400"></i>Negócio
                                       </span>
                                     } @else if (risk.type === 'Usabilidade') {
                                       <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900 text-sky-300">
-                                          <i class="fas fa-mouse-pointer text-sky-400"></i>
-                                          Risco de Usabilidade
+                                          <i class="fas fa-mouse-pointer text-sky-400"></i>Usabilidade
+                                      </span>
+                                    } @else if (risk.type === 'Compliance') {
+                                      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-900 text-yellow-300">
+                                          <i class="fas fa-shield-alt text-yellow-400"></i>Compliance
+                                      </span>
+                                    } @else if (risk.type === 'Rollout') {
+                                      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-teal-900 text-teal-300">
+                                          <i class="fas fa-rocket text-teal-400"></i>Rollout
+                                      </span>
+                                    }
+                                    @if (risk.severity) {
+                                      <span class="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full"
+                                        [class]="risk.severity === 'alta' ? 'bg-red-900/70 text-red-300' : risk.severity === 'média' ? 'bg-yellow-900/70 text-yellow-300' : 'bg-green-900/70 text-green-300'">
+                                        {{ risk.severity === 'alta' ? '⬆ Alta' : risk.severity === 'média' ? '➡ Média' : '⬇ Baixa' }}
                                       </span>
                                     }
                                   </div>

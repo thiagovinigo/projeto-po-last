@@ -31,7 +31,8 @@ export interface AdvancedValidationResult extends Omit<ValidationResult, 'valida
 }
 
 export interface Risk {
-  type: 'Técnico' | 'Negócio' | 'Usabilidade';
+  type: 'Técnico' | 'Negócio' | 'Usabilidade' | 'Compliance' | 'Rollout';
+  severity?: 'baixa' | 'média' | 'alta';
   description: string;
   mitigationSuggestion: string;
 }
