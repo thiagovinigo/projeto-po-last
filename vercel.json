@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "sed -i \"s|__RAILWAY_API_URL__|$RAILWAY_API_URL|g\" src/environments/environment.prod.ts && npm run build -- --configuration=production",
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
