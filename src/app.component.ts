@@ -58,6 +58,13 @@ export class AppComponent implements OnInit {
   importedFiles = signal<File[]>([]);
   isImporting = signal<boolean>(false);
   importError = signal<string | null>(null);
+  importStep = signal<string | null>(null);
+
+  // Project Info Conflict Modal
+  projectInfoConflict = signal<{
+    extracted: Partial<ProjectInfo>;
+    existing: ProjectInfo;
+  } | null>(null);
 
   // Document Generation State
   generatedDoc = signal<GeneratedDocument | null>(null);
@@ -527,27 +534,67 @@ ${story.testScenarios.unit}
     this.error.set(null);
 
     try {
-      const fileProcessingPromises = files.map(file => {
-        return new Promise<ExtractedBacklogItems[]>(async (resolve, reject) => {
-          try {
-            const content = await this.documentService.extractTextFromFile(file);
-            const result = await this.geminiService.processDocumentForBacklog(content);
-            resolve(result);
-          } catch (err) {
-            reject(new Error(`Falha ao processar o arquivo ${file.name}: ${err}`));
-          }
-        });
-      });
+      // Extrai texto de todos os arquivos primeiro
+      this.importStep.set('Lendo documentos...');
+      const fileContents = await Promise.all(
+        files.map(async file => ({
+          name: file.name,
+          content: await this.documentService.extractTextFromFile(file)
+        }))
+      );
 
-      const resultsFromAllFiles = await Promise.all(fileProcessingPromises);
+      // Roda extração de backlog + extração de info do projeto em paralelo
+      this.importStep.set('Extraindo histórias e informações do projeto...');
+      const combinedContent = fileContents.map(f => f.content).join('\n\n---\n\n');
+
+      const [resultsFromAllFiles, extractedInfo] = await Promise.all([
+        Promise.all(
+          fileContents.map(async ({ name, content }) => {
+            try {
+              return await this.geminiService.processDocumentForBacklog(content);
+            } catch (err) {
+              throw new Error(`Falha ao processar o arquivo ${name}: ${err}`);
+            }
+          })
+        ),
+        this.geminiService.extractProjectInfo(combinedContent)
+      ]);
+
       const allExtractedItems = resultsFromAllFiles.flat();
-      
+
       if (allExtractedItems.length === 0 && allExtractedItems.every(group => group.refinedStories.length === 0)) {
-          this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos fornecidos.');
-          return;
+        this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos fornecidos.');
+        return;
       }
 
       this.addExtractedItemsToBacklog(allExtractedItems);
+
+      // Lida com informações do projeto extraídas
+      this.importStep.set('Verificando informações do projeto...');
+      const hasExtractedInfo = Object.values(extractedInfo).some(v => v && (v as string).trim().length > 0);
+      if (hasExtractedInfo) {
+        const active = this.activeBacklog();
+        const existingInfo = active?.info;
+        const infoIsEmpty = !existingInfo || !(existingInfo.description || existingInfo.objective || existingInfo.targetUsers || existingInfo.stakeholders || existingInfo.techStack || existingInfo.constraints || existingInfo.notes);
+
+        if (infoIsEmpty) {
+          // Auto-preenche silenciosamente
+          const newInfo: ProjectInfo = {
+            description: extractedInfo.description ?? '',
+            objective: extractedInfo.objective ?? '',
+            targetUsers: extractedInfo.targetUsers ?? '',
+            stakeholders: extractedInfo.stakeholders ?? '',
+            techStack: extractedInfo.techStack ?? '',
+            constraints: extractedInfo.constraints ?? '',
+            notes: extractedInfo.notes ?? '',
+            updatedAt: Date.now()
+          };
+          this.saveProjectInfo(newInfo);
+        } else {
+          // Mostra modal de conflito
+          this.projectInfoConflict.set({ extracted: extractedInfo, existing: existingInfo! });
+        }
+      }
 
       const allRefinedStories = allExtractedItems.flatMap(group =>
         group.refinedStories.map(story => ({
@@ -572,6 +619,7 @@ ${story.testScenarios.unit}
       this.importError.set('A IA falhou em processar um ou mais documentos. Verifique o conteúdo ou tente novamente.');
     } finally {
       this.isImporting.set(false);
+      this.importStep.set(null);
     }
   }
   
@@ -654,6 +702,49 @@ ${story.testScenarios.unit}
 
   closeBacklogModal(): void {
     this.backlogAnalysisModal.set(null);
+  }
+
+  applyExtractedProjectInfo(): void {
+    const conflict = this.projectInfoConflict();
+    if (!conflict) return;
+    const merged: ProjectInfo = {
+      description: conflict.extracted.description || conflict.existing.description,
+      objective: conflict.extracted.objective || conflict.existing.objective,
+      targetUsers: conflict.extracted.targetUsers || conflict.existing.targetUsers,
+      stakeholders: conflict.extracted.stakeholders || conflict.existing.stakeholders,
+      techStack: conflict.extracted.techStack || conflict.existing.techStack,
+      constraints: conflict.extracted.constraints || conflict.existing.constraints,
+      notes: conflict.extracted.notes || conflict.existing.notes,
+      updatedAt: Date.now()
+    };
+    this.saveProjectInfo(merged);
+    this.projectInfoConflict.set(null);
+  }
+
+  overwriteWithExtractedProjectInfo(): void {
+    const conflict = this.projectInfoConflict();
+    if (!conflict) return;
+    const newInfo: ProjectInfo = {
+      description: conflict.extracted.description ?? '',
+      objective: conflict.extracted.objective ?? '',
+      targetUsers: conflict.extracted.targetUsers ?? '',
+      stakeholders: conflict.extracted.stakeholders ?? '',
+      techStack: conflict.extracted.techStack ?? '',
+      constraints: conflict.extracted.constraints ?? '',
+      notes: conflict.extracted.notes ?? '',
+      updatedAt: Date.now()
+    };
+    this.saveProjectInfo(newInfo);
+    this.projectInfoConflict.set(null);
+  }
+
+  dismissProjectInfoConflict(): void {
+    this.projectInfoConflict.set(null);
+  }
+
+  getInfoField(obj: Partial<ProjectInfo> | null | undefined, key: string): string {
+    if (!obj) return '';
+    return (obj as Record<string, unknown>)[key] as string ?? '';
   }
 
   asDependencyAnalysis(result: BacklogDependencyAnalysis | BacklogRiskAnalysis): BacklogDependencyAnalysis {

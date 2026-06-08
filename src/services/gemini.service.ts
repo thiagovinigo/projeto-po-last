@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import Groq from 'groq-sdk';
-import { StrategicRefinementResult, TestScenarios, RefinedStory, ExtractedBacklogItems, BacklogItem, BacklogDependencyAnalysis, BacklogRiskAnalysis } from '../models/validation.model';
+import { StrategicRefinementResult, TestScenarios, RefinedStory, ExtractedBacklogItems, BacklogItem, BacklogDependencyAnalysis, BacklogRiskAnalysis, ProjectInfo } from '../models/validation.model';
 import { environment } from '../environments/environment';
 
 export type DocumentKind = 'prd' | 'spec';
@@ -282,6 +282,35 @@ export class GeminiService {
     } catch (error) {
       console.error('Error calling Groq API for technical artifact generation:', error);
       throw new Error('Falha ao gerar o artefato técnico.');
+    }
+  }
+
+  async extractProjectInfo(documentContent: string): Promise<Partial<ProjectInfo>> {
+    const system = `
+Você é um Analista de Negócios Sênior especializado em extrair informações de contexto de projetos a partir de documentos.
+
+Leia o documento e extraia APENAS informações que estejam explicitamente presentes no texto.
+Para campos não encontrados, retorne string vazia "".
+
+**Retorne APENAS JSON válido com esta estrutura:**
+{
+  "description": "descrição geral do projeto ou produto",
+  "objective": "objetivos principais do projeto",
+  "targetUsers": "usuários-alvo ou personas descritas",
+  "stakeholders": "stakeholders, patrocinadores ou partes interessadas mencionadas",
+  "techStack": "tecnologias, frameworks ou plataformas mencionadas",
+  "constraints": "restrições, limitações, prazos ou regras de negócio mencionadas",
+  "notes": "outras informações relevantes não cobertas pelos campos acima"
+}
+
+Responda APENAS com o JSON. Sem markdown. Sem explicações.`;
+
+    const prompt = `Extraia as informações do projeto deste documento:\n\n${documentContent.substring(0, 8000)}`;
+
+    try {
+      return await this.generateValidation<Partial<ProjectInfo>>(prompt, system);
+    } catch {
+      return {};
     }
   }
 

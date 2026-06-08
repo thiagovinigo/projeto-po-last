@@ -818,7 +818,7 @@
                         class="w-2/3 bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center shadow-md">
                   @if (isImporting()) {
                     <i class="fas fa-spinner fa-spin mr-2"></i>
-                    <span>Analisando Documentos...</span>
+                    <span>{{ importStep() ?? 'Analisando Documentos...' }}</span>
                   } @else {
                     <i class="fas fa-cogs mr-2"></i>
                     <span>Analisar e Gerar Backlog</span>
@@ -917,6 +917,94 @@
     (download)="downloadGeneratedDoc()"
     (close)="closeGeneratedDoc()">
   </app-document-viewer>
+
+  <!-- ===================== PROJECT INFO CONFLICT MODAL ===================== -->
+  @if (projectInfoConflict(); as conflict) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 rounded-2xl border border-yellow-700/60 shadow-2xl">
+
+        <!-- Header -->
+        <div class="sticky top-0 flex items-center gap-3 px-6 py-4 border-b border-yellow-700/40 bg-gray-900 rounded-t-2xl z-10">
+          <div class="w-9 h-9 rounded-lg bg-yellow-700/40 flex items-center justify-center shrink-0">
+            <i class="fas fa-exclamation-triangle text-yellow-300"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white">Informações conflitantes do projeto</h2>
+            <p class="text-xs text-gray-400">O documento importado contém informações que diferem do que já está preenchido</p>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="px-6 py-5 space-y-4">
+
+          <!-- Comparison table -->
+          <div class="overflow-hidden rounded-xl border border-gray-700">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-700">
+                  <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wider w-28">Campo</th>
+                  <th class="text-left px-4 py-2.5 text-xs font-bold text-blue-400 uppercase tracking-wider">
+                    <i class="fas fa-database mr-1"></i> Atual
+                  </th>
+                  <th class="text-left px-4 py-2.5 text-xs font-bold text-green-400 uppercase tracking-wider">
+                    <i class="fas fa-file-import mr-1"></i> Extraído do documento
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800">
+                @for (field of [
+                  { key: 'description', label: 'Descrição' },
+                  { key: 'objective', label: 'Objetivo' },
+                  { key: 'targetUsers', label: 'Usuários-alvo' },
+                  { key: 'stakeholders', label: 'Stakeholders' },
+                  { key: 'techStack', label: 'Tech Stack' },
+                  { key: 'constraints', label: 'Restrições' },
+                  { key: 'notes', label: 'Notas' }
+                ]; track field.key) {
+                  @let existingVal = getInfoField(conflict.existing, field.key);
+                  @let extractedVal = getInfoField(conflict.extracted, field.key);
+                  @if (existingVal || extractedVal) {
+                    <tr [class]="existingVal && extractedVal && existingVal !== extractedVal ? 'bg-yellow-950/20' : ''">
+                      <td class="px-4 py-2.5 text-xs font-semibold text-gray-400 align-top">{{ field.label }}</td>
+                      <td class="px-4 py-2.5 text-xs text-gray-300 align-top">{{ existingVal || '—' }}</td>
+                      <td class="px-4 py-2.5 text-xs align-top" [class]="extractedVal ? 'text-green-300' : 'text-gray-500'">
+                        {{ extractedVal || '—' }}
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-xs text-gray-500">
+            <i class="fas fa-info-circle mr-1"></i>
+            Linhas <span class="text-yellow-400">destacadas em amarelo</span> têm valores diferentes entre o atual e o extraído.
+          </p>
+        </div>
+
+        <!-- Actions -->
+        <div class="sticky bottom-0 flex flex-col gap-2 px-6 py-4 border-t border-gray-700 bg-gray-900 rounded-b-2xl">
+          <button (click)="applyExtractedProjectInfo()"
+            class="w-full py-2.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-sm font-semibold transition flex items-center justify-center gap-2">
+            <i class="fas fa-code-merge"></i>
+            Mesclar — preencher campos vazios com o extraído
+          </button>
+          <button (click)="overwriteWithExtractedProjectInfo()"
+            class="w-full py-2.5 rounded-lg bg-yellow-700/70 hover:bg-yellow-600/80 text-yellow-100 text-sm font-semibold transition flex items-center justify-center gap-2">
+            <i class="fas fa-file-import"></i>
+            Substituir — usar apenas as informações extraídas
+          </button>
+          <button (click)="dismissProjectInfoConflict()"
+            class="w-full py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold transition flex items-center justify-center gap-2">
+            <i class="fas fa-times"></i>
+            Manter atual — ignorar informações extraídas
+          </button>
+        </div>
+
+      </div>
+    </div>
+  }
 
   <!-- ===================== BACKLOG ANALYSIS MODAL ===================== -->
   @if (backlogAnalysisModal(); as modal) {
