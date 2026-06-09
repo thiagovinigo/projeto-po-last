@@ -326,6 +326,50 @@ export class AppComponent implements OnInit {
     this.currentView.set('analyzer');
   }
 
+  async reAnalyzeCurrentStory(story: RefinedStory): Promise<void> {
+    this.isLoading.set(true);
+    this.error.set(null);
+    try {
+      const prompt = story.businessNarrative?.trim()
+        ? `${story.userPersona}\n\nContexto: ${story.businessNarrative}`
+        : `Como usuário, quero ${story.title}. Épico: ${story.epicSuggestion}. Feature: ${story.featureSuggestion}.`;
+      const result = await this.geminiService.refineUserStoryStrategic(prompt);
+      if (!result.refinedStories?.length) return;
+
+      const refined = result.refinedStories[0];
+      const storyId = (story as BacklogItem).id;
+
+      if (storyId) {
+        const updatedStory: BacklogItem = {
+          ...(story as BacklogItem),
+          ...refined,
+          id: storyId,
+          order: (story as BacklogItem).order,
+          epicSuggestion: story.epicSuggestion,
+          featureSuggestion: story.featureSuggestion,
+          sourceFile: story.sourceFile,
+          isLiteImport: false,
+        };
+        const active = this.activeBacklog();
+        if (active) {
+          this.backlogs.update(bs => bs.map(b =>
+            b.projectName === active.projectName
+              ? { ...b, items: b.items.map(i => i.id === storyId ? updatedStory : i) }
+              : b
+          ));
+          this.saveBacklogsToStorage();
+        }
+        this.viewStoryFromBacklog(updatedStory);
+      } else {
+        this.validationResult.set(result);
+      }
+    } catch (err) {
+      this.error.set(`Falha ao re-analisar: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
   async refineStoryInBacklog(story: BacklogItem): Promise<void> {
     this.refiningStoryId.set(story.id);
     this.error.set(null);
