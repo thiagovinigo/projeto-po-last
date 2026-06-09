@@ -51,11 +51,6 @@
                 <span>{{ isGeneratingArtifact() === 'spec' ? (generatingArtifactStep() ?? 'Gerando...') : 'Gerar spec.md' }}</span>
               </button>
             }
-            <button (click)="showAnalyzer()"
-              class="btn-gradient flex items-center gap-2 px-4 py-2 text-sm cursor-pointer">
-              <i class="fas fa-magic text-xs"></i>
-              <span>Analisar</span>
-            </button>
             <button (click)="showImporter()"
               class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer"
               style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.35); color:var(--accent-emerald)">
@@ -128,18 +123,42 @@
                                 } @else {
                                   <p (dblclick)="startInlineEdit(story)" class="text-sm font-medium text-gray-200 leading-snug cursor-text" title="Duplo clique para editar">{{ story.title }}</p>
                                 }
-                                @if (story.storyEstimate) {
-                                  <span class="inline-flex items-center gap-1 text-xs text-yellow-300 mt-1">
-                                    <i class="fas fa-stopwatch text-yellow-400 text-xs"></i>
-                                    {{ story.storyEstimate }}
-                                  </span>
-                                }
+                                <div class="flex flex-wrap items-center gap-2 mt-1">
+                                  @if (story.storyEstimate) {
+                                    <span class="inline-flex items-center gap-1 text-xs text-yellow-300">
+                                      <i class="fas fa-stopwatch text-yellow-400 text-xs"></i>
+                                      {{ story.storyEstimate }}
+                                    </span>
+                                  }
+                                  @if (story.sourceFile) {
+                                    <span class="inline-flex items-center gap-1 text-xs text-cyan-400 bg-cyan-900/30 border border-cyan-800/50 rounded px-1.5 py-0.5" [title]="story.sourceFile">
+                                      <i class="fas fa-file-import text-xs"></i>
+                                      {{ story.sourceFile.length > 24 ? story.sourceFile.slice(0, 22) + '…' : story.sourceFile }}
+                                    </span>
+                                  }
+                                  @if (story.isLiteImport) {
+                                    <span class="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-900/30 border border-amber-800/50 rounded px-1.5 py-0.5" title="Importada em modo rápido — clique em Refinar para ver detalhes completos">
+                                      <i class="fas fa-bolt text-xs"></i>
+                                      Lite
+                                    </span>
+                                  }
+                                </div>
                               </div>
                             </div>
                             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
                               <button (click)="viewStoryFromBacklog(story)" title="Ver detalhes"
                                 class="p-1.5 rounded-md text-gray-400 hover:text-blue-300 hover:bg-blue-900/30 transition">
                                 <i class="fas fa-eye text-xs"></i>
+                              </button>
+                              <button (click)="refineStoryInBacklog(story)"
+                                [disabled]="refiningStoryId() === story.id"
+                                [title]="story.isLiteImport ? 'Refinar com IA completa (gpt-4o)' : 'Re-analisar com IA'"
+                                class="p-1.5 rounded-md text-gray-400 hover:text-purple-300 hover:bg-purple-900/30 transition disabled:opacity-40 disabled:cursor-wait">
+                                @if (refiningStoryId() === story.id) {
+                                  <i class="fas fa-spinner fa-spin text-xs text-purple-400"></i>
+                                } @else {
+                                  <i class="fas fa-magic text-xs"></i>
+                                }
                               </button>
                               <button (click)="startEditing(story)" title="Editar"
                                 class="p-1.5 rounded-md text-gray-400 hover:text-cyan-300 hover:bg-cyan-900/30 transition">
@@ -365,6 +384,25 @@
                     
                     @for (story of result.refinedStories; track story.title; let i = $index) {
                       <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 space-y-4">
+                        @if (story.isLiteImport) {
+                          <div class="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-amber-900/30 border border-amber-700/50">
+                            <div class="flex items-center gap-2 text-amber-300 text-sm">
+                              <i class="fas fa-bolt text-amber-400"></i>
+                              <span>Importada em modo rápido — cenários de teste, tarefas e análise completa ainda não foram gerados.</span>
+                            </div>
+                            <button (click)="refineStoryInBacklog(story)"
+                              [disabled]="refiningStoryId() !== null"
+                              class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-700/70 hover:bg-purple-600/80 text-white disabled:opacity-50 disabled:cursor-wait flex items-center gap-1.5 transition">
+                              @if (refiningStoryId() !== null) {
+                                <i class="fas fa-spinner fa-spin text-xs"></i>
+                                <span>Refinando...</span>
+                              } @else {
+                                <i class="fas fa-magic text-xs"></i>
+                                <span>Refinar completamente</span>
+                              }
+                            </button>
+                          </div>
+                        }
                         <div class="flex justify-between items-start">
                           <h3 class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 flex-1">
                             <span class="text-gray-500 font-normal">História de Usuário {{ result.refinedStories.length > 1 ? i + 1 : '' }}:</span> {{ story.title }}

@@ -64,6 +64,9 @@ export class AppComponent implements OnInit {
   importError = signal<string | null>(null);
   importStep = signal<string | null>(null);
 
+  // Per-story refinement
+  refiningStoryId = signal<number | null>(null);
+
   // Project Info Conflict Modal
   projectInfoConflict = signal<{
     extracted: Partial<ProjectInfo>;
@@ -310,11 +313,10 @@ export class AppComponent implements OnInit {
   viewStoryFromBacklog(story: BacklogItem): void {
     const result: StrategicRefinementResult = {
       validationType: 'strategic',
-      model: story.model || 'gemini-2.5-flash',
-      divisionAnalysis: `Visualizando a história "${story.title}" a partir do backlog do projeto "${this.selectedBacklogName()}".`,
+      model: story.model || 'gpt-4o',
+      divisionAnalysis: '',
       refinedStories: [story]
     };
-
     this.validationResult.set(null);
     this.validationResult.set(result);
     this.error.set(null);
@@ -322,6 +324,44 @@ export class AppComponent implements OnInit {
     this.activeValidation.set(null);
     this.storyAddedToBacklog.set({});
     this.currentView.set('analyzer');
+  }
+
+  async refineStoryInBacklog(story: BacklogItem): Promise<void> {
+    this.refiningStoryId.set(story.id);
+    this.error.set(null);
+    try {
+      const prompt = story.businessNarrative
+        ? `${story.userPersona}\n\nContexto adicional: ${story.businessNarrative}`
+        : `Como usuário, quero ${story.title}. Contexto: ${story.epicSuggestion} > ${story.featureSuggestion}`;
+      const result = await this.geminiService.refineUserStoryStrategic(prompt);
+      if (result.refinedStories?.length) {
+        const refined = result.refinedStories[0];
+        const updatedStory: BacklogItem = {
+          ...story,
+          ...refined,
+          id: story.id,
+          order: story.order,
+          epicSuggestion: story.epicSuggestion,
+          featureSuggestion: story.featureSuggestion,
+          sourceFile: story.sourceFile,
+          isLiteImport: false,
+        };
+        const active = this.activeBacklog();
+        if (active) {
+          this.backlogs.update(bs => bs.map(b =>
+            b.projectName === active.projectName
+              ? { ...b, items: b.items.map(i => i.id === story.id ? updatedStory : i) }
+              : b
+          ));
+          this.saveBacklogsToStorage();
+        }
+        this.viewStoryFromBacklog(updatedStory);
+      }
+    } catch (err) {
+      this.error.set(`Falha ao refinar: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+    } finally {
+      this.refiningStoryId.set(null);
+    }
   }
   
   // UI Actions
@@ -601,7 +641,10 @@ ${story.testScenarios.unit}
         return;
       }
 
-      this.addExtractedItemsToBacklog(allExtractedItems);
+      const sourceLabel = fileContents.length === 1
+        ? fileContents[0].name
+        : fileContents.map(f => f.name).join(', ');
+      this.addExtractedItemsToBacklog(allExtractedItems, sourceLabel);
 
       // 3. Extrai info do projeto (opcional — não bloqueia se falhar)
       this.importStep.set('Analisando informações do projeto...');
@@ -659,7 +702,7 @@ ${story.testScenarios.unit}
     }
   }
   
-  private addExtractedItemsToBacklog(extractedItems: ExtractedBacklogItems[]): void {
+  private addExtractedItemsToBacklog(extractedItems: ExtractedBacklogItems[], sourceFile?: string): void {
     const selectedProjectName = this.selectedBacklogName();
     if (!selectedProjectName) return;
 
@@ -669,7 +712,7 @@ ${story.testScenarios.unit}
 
         const updatedProject = { ...backlogs[projectIndex] };
         let currentMaxOrder = updatedProject.items.length > 0 ? Math.max(...updatedProject.items.map(i => i.order)) : -1;
-        
+
         const newItems: BacklogItem[] = [];
         extractedItems.forEach(group => {
             group.refinedStories.forEach(story => {
@@ -678,8 +721,10 @@ ${story.testScenarios.unit}
                     ...story,
                     epicSuggestion: group.epicSuggestion,
                     featureSuggestion: group.featureSuggestion,
-                    id: Date.now() + Math.random(), // Avoid collision in fast loops
-                    order: currentMaxOrder
+                    id: Date.now() + Math.random(),
+                    order: currentMaxOrder,
+                    sourceFile: sourceFile,
+                    isLiteImport: story.isLiteImport ?? true,
                 };
                 newItems.push(newBacklogItem);
             });

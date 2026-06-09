@@ -72,6 +72,8 @@ export interface RefinedStory {
   identifiedDependencies: string[];
   riskAnalysis: Risk[];
   model?: string;
+  sourceFile?: string;
+  isLiteImport?: boolean;
 }
 
 export interface StrategicRefinementResult {
