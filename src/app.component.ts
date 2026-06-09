@@ -9,6 +9,7 @@ import { DocumentService } from './services/document.service';
 import { DocumentExportService } from './services/document-export.service';
 import { ProjectInfoPanelComponent } from './app/features/project-info/project-info-panel.component';
 import { DocumentViewerComponent, GeneratedDocument } from './app/features/document-viewer/document-viewer.component';
+import { ProjectService } from './app/core/services/project.service';
 
 declare var marked: any; // Allow TypeScript to recognize the 'marked' library from the CDN
 
@@ -22,6 +23,7 @@ export class AppComponent implements OnInit {
   private geminiService = inject(GeminiService);
   private documentService = inject(DocumentService);
   private documentExportService = inject(DocumentExportService);
+  private projectService = inject(ProjectService);
   private sanitizer = inject(DomSanitizer);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -127,15 +129,25 @@ export class AppComponent implements OnInit {
 
   objectKeys = Object.keys;
 
-  constructor() {
-    this.loadBacklogsFromStorage();
-  }
+  constructor() {}
 
   ngOnInit(): void {
     const projectName = this.route.snapshot.paramMap.get('name');
-    if (projectName) {
-      this.selectedBacklogName.set(decodeURIComponent(projectName));
-      this.currentView.set('backlog');
+    void this.initProjects(projectName ? decodeURIComponent(projectName) : null);
+  }
+
+  private async initProjects(initialProjectName: string | null): Promise<void> {
+    try {
+      const backlogs = await this.projectService.loadProjects();
+      this.backlogs.set(backlogs);
+      if (initialProjectName) {
+        this.selectedBacklogName.set(initialProjectName);
+        this.currentView.set('backlog');
+      } else if (backlogs.length > 0 && !this.selectedBacklogName()) {
+        this.selectedBacklogName.set(backlogs[0].projectName);
+      }
+    } catch (err) {
+      console.error('Failed to load projects:', err);
     }
   }
 
@@ -159,23 +171,12 @@ export class AppComponent implements OnInit {
   }
 
   // Backlog Management
-  private loadBacklogsFromStorage(): void {
-    if (typeof localStorage !== 'undefined') {
-      const storedBacklogs = localStorage.getItem('userStoryBacklogs');
-      if (storedBacklogs) {
-        const backlogs: Backlog[] = JSON.parse(storedBacklogs);
-        this.backlogs.set(backlogs);
-        if (backlogs.length > 0 && !this.selectedBacklogName()) {
-          this.selectedBacklogName.set(backlogs[0].projectName);
-        }
-      }
-    }
-  }
-
-  private saveBacklogsToStorage(): void {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('userStoryBacklogs', JSON.stringify(this.backlogs()));
-    }
+  private saveActiveProject(): void {
+    const active = this.activeBacklog();
+    if (!active) return;
+    this.projectService.saveProject(active).catch(err =>
+      console.error('Failed to save project:', err)
+    );
   }
 
   addStoryToBacklog(storyIndex: number): void {
@@ -199,7 +200,7 @@ export class AppComponent implements OnInit {
           : b
       );
     });
-    this.saveBacklogsToStorage();
+    this.saveActiveProject();
     this.storyAddedToBacklog.update(s => ({ ...s, [storyIndex]: true }));
     setTimeout(() => {
       this.storyAddedToBacklog.update(s => ({ ...s, [storyIndex]: false }));
@@ -234,7 +235,7 @@ export class AppComponent implements OnInit {
     this.backlogs.update(backlogs => 
       backlogs.map(b => b.projectName === active.projectName ? { ...b, items } : b)
     );
-    this.saveBacklogsToStorage();
+    this.saveActiveProject();
   }
   
   deleteStory(storyId: number): void {
@@ -248,7 +249,7 @@ export class AppComponent implements OnInit {
         : b
       )
     );
-    this.saveBacklogsToStorage();
+    this.saveActiveProject();
   }
 
   startEditing(story: BacklogItem): void {
@@ -267,7 +268,7 @@ export class AppComponent implements OnInit {
         : b
       )
     );
-    this.saveBacklogsToStorage();
+    this.saveActiveProject();
     this.cancelEditing();
   }
 
@@ -292,7 +293,7 @@ export class AppComponent implements OnInit {
           : b
       )
     );
-    this.saveBacklogsToStorage();
+    this.saveActiveProject();
     this.cancelInlineEdit();
   }
 
@@ -360,7 +361,7 @@ export class AppComponent implements OnInit {
               ? { ...b, items: b.items.map(i => i.id === storyId ? updatedStory : i) }
               : b
           ));
-          this.saveBacklogsToStorage();
+          this.saveActiveProject();
         }
         this.viewStoryFromBacklog(updatedStory);
       } else {
@@ -401,7 +402,7 @@ export class AppComponent implements OnInit {
               ? { ...b, items: b.items.map(i => i.id === story.id ? updatedStory : i) }
               : b
           ));
-          this.saveBacklogsToStorage();
+          this.saveActiveProject();
         }
         this.viewStoryFromBacklog(updatedStory);
       }
@@ -785,7 +786,7 @@ ${story.testScenarios.unit}
         return newBacklogs;
     });
 
-    this.saveBacklogsToStorage();
+    this.saveActiveProject();
   }
 
   // Project Info Management
@@ -797,7 +798,7 @@ ${story.testScenarios.unit}
         b.projectName === active.projectName ? { ...b, info } : b
       )
     );
-    this.saveBacklogsToStorage();
+    this.saveActiveProject();
   }
 
   // Backlog Analysis

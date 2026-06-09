@@ -109,11 +109,10 @@
     @if (!isLoadingProjects() && hasProjects()) {
       <div class="grid gap-4">
         @for (backlog of backlogs(); track backlog.projectName; let i = $index) {
-          <div (click)="openProject(backlog.projectName)"
-            class="glass group p-5 cursor-pointer transition-all fade-up"
+          <div class="glass group p-5 transition-all fade-up"
             style="border-top: 3px solid var(--accent-blue); animation-delay:{{ i * 60 }}ms">
             <div class="flex items-center justify-between">
-              <div class="flex items-center gap-4">
+              <div class="flex items-center gap-4 flex-1 cursor-pointer" (click)="openProject(backlog.projectName)">
                 <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
                   style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.25)">
                   <span class="font-black text-base" style="color:var(--accent-blue); font-family:var(--font-display)">
@@ -128,7 +127,19 @@
                   </p>
                 </div>
               </div>
-              <i class="fas fa-chevron-right text-sm transition text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1"></i>
+              <div class="flex items-center gap-2">
+                <button
+                  (click)="deleteProject(backlog.projectName); $event.stopPropagation()"
+                  class="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg text-xs cursor-pointer"
+                  style="color:var(--accent-rose); border:1px solid transparent"
+                  onmouseenter="this.style.borderColor='var(--accent-rose)'; this.style.background='rgba(244,63,94,0.1)'"
+                  onmouseleave="this.style.borderColor='transparent'; this.style.background='transparent'"
+                  title="Excluir projeto">
+                  <i class="fas fa-trash"></i>
+                </button>
+                <i class="fas fa-chevron-right text-sm transition text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 cursor-pointer"
+                  (click)="openProject(backlog.projectName)"></i>
+              </div>
             </div>
           </div>
         }

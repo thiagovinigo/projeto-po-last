@@ -1,6 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { AuthService } from './app/core/services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -9,10 +8,4 @@ import { AuthService } from './app/core/services/auth.service';
   template: '<router-outlet />',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ShellComponent implements OnInit {
-  private auth = inject(AuthService);
-
-  async ngOnInit(): Promise<void> {
-    await this.auth.initSession();
-  }
-}
+export class ShellComponent {}

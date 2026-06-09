@@ -2,6 +2,7 @@ import { Component, signal, computed, inject, ChangeDetectionStrategy, OnInit } 
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { ProjectService } from '../../core/services/project.service';
 import { Backlog } from '../../../models/validation.model';
 
 @Component({
@@ -14,6 +15,7 @@ import { Backlog } from '../../../models/validation.model';
 export class DashboardComponent implements OnInit {
   private router = inject(Router);
   private auth = inject(AuthService);
+  private projectService = inject(ProjectService);
 
   backlogs = signal<Backlog[]>([]);
   showCreateInput = signal(false);
@@ -25,30 +27,26 @@ export class DashboardComponent implements OnInit {
   userEmail = computed(() => this.auth.user()?.email ?? '');
 
   ngOnInit(): void {
-    this.loadBacklogs();
+    void this.loadBacklogs();
   }
 
-  private loadBacklogs(): void {
+  private async loadBacklogs(): Promise<void> {
     try {
-      const stored = localStorage.getItem('userStoryBacklogs');
-      this.backlogs.set(stored ? JSON.parse(stored) : []);
-    } catch {
+      const backlogs = await this.projectService.loadProjects();
+      this.backlogs.set(backlogs);
+    } catch (err) {
+      console.error('Failed to load projects:', err);
       this.backlogs.set([]);
     } finally {
       this.isLoadingProjects.set(false);
     }
   }
 
-  private saveBacklogs(backlogs: Backlog[]): void {
-    localStorage.setItem('userStoryBacklogs', JSON.stringify(backlogs));
-    this.backlogs.set(backlogs);
-  }
-
   openProject(projectName: string): void {
     this.router.navigate(['/project', projectName]);
   }
 
-  createProject(): void {
+  async createProject(): Promise<void> {
     const name = this.newProjectName().trim();
     if (!name) return;
 
@@ -58,8 +56,23 @@ export class DashboardComponent implements OnInit {
     }
 
     const newBacklog: Backlog = { projectName: name, items: [] };
-    this.saveBacklogs([...this.backlogs(), newBacklog]);
-    this.router.navigate(['/project', name]);
+    try {
+      await this.projectService.saveProject(newBacklog);
+      this.backlogs.update(bs => [...bs, newBacklog]);
+      this.router.navigate(['/project', name]);
+    } catch {
+      this.errorMessage.set('Erro ao criar projeto. Tente novamente.');
+    }
+  }
+
+  async deleteProject(projectName: string): Promise<void> {
+    if (!confirm(`Tem certeza que deseja excluir o projeto "${projectName}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await this.projectService.deleteProject(projectName);
+      this.backlogs.update(bs => bs.filter(b => b.projectName !== projectName));
+    } catch {
+      this.errorMessage.set('Erro ao excluir projeto. Tente novamente.');
+    }
   }
 
   showCreate(): void {
