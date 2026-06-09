@@ -1,55 +1,38 @@
 import { Injectable } from '@angular/core';
-import Groq from 'groq-sdk';
+import OpenAI from 'openai';
 import { StrategicRefinementResult, TestScenarios, RefinedStory, ExtractedBacklogItems, BacklogItem, BacklogDependencyAnalysis, BacklogRiskAnalysis, ProjectInfo } from '../models/validation.model';
 import { environment } from '../environments/environment';
 
 export type DocumentKind = 'prd' | 'spec';
 
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL = 'gpt-4o-mini';
 
 @Injectable({
   providedIn: 'root'
 })
 export class GeminiService {
-  private groq: Groq | null = null;
-  private readonly useProxy = environment.production && !!environment.groqApiUrl;
-  private readonly proxyUrl = environment.groqApiUrl
-    ? `${environment.groqApiUrl}/api/groq/chat`
-    : '';
+  private openai: OpenAI;
 
   constructor() {
-    if (!this.useProxy) {
-      const apiKey = environment.apiKey;
-      if (!apiKey || apiKey === '__GROQ_API_KEY__') {
-        throw new Error('API key not configured. Set apiKey in src/environments/environment.ts');
-      }
-      this.groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+    const apiKey = environment.apiKey;
+    if (!apiKey || apiKey === '__OPENAI_API_KEY__') {
+      throw new Error('API key não configurada. Defina apiKey em src/environments/environment.ts');
     }
+    this.openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
   }
 
-  // Unified chat call — SDK in dev, proxy in prod
   private async chat(params: {
     messages: { role: string; content: string }[];
     response_format?: { type: string };
     temperature?: number;
     model?: string;
   }): Promise<{ choices: { message: { content: string | null } }[] }> {
-    const body = { model: MODEL, ...params };
-
-    if (this.useProxy) {
-      const res = await fetch(this.proxyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? `Proxy error ${res.status}`);
-      }
-      return res.json();
-    }
-
-    const result = await this.groq!.chat.completions.create(body as Parameters<Groq['chat']['completions']['create']>[0]);
+    const result = await this.openai.chat.completions.create({
+      model: params.model ?? MODEL,
+      messages: params.messages as OpenAI.Chat.ChatCompletionMessageParam[],
+      response_format: params.response_format as OpenAI.ResponseFormatJSONObject | undefined,
+      temperature: params.temperature,
+    });
     return result as unknown as { choices: { message: { content: string | null } }[] };
   }
 
