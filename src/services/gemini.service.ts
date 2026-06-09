@@ -157,43 +157,58 @@ export class GeminiService {
     }
 
     let refined = 0;
+    let rateLimitFailures = 0;
+    let otherFailures = 0;
+
     for (const epic of Object.keys(grouped)) {
       for (const feature of Object.keys(grouped[epic])) {
         const stories: RefinedStory[] = [];
         for (const outline of grouped[epic][feature]) {
           refined++;
-          onProgress?.(`Fase 2/2: refinando história ${refined}/${outlines.length} — "${outline.title}"...`);
-          try {
-            const result = await this.refineUserStoryStrategic(
-              `Como ${outline.persona ?? 'usuário'}, quero ${outline.title}. Contexto: ${outline.description}`
-            );
-            if (result.refinedStories?.length) {
-              const s = { ...result.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature };
-              stories.push(s);
-            }
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit');
-            if (isRateLimit) {
-              onProgress?.(`Rate limit atingido — aguardando 60s antes de retomar...`);
-              await new Promise(r => setTimeout(r, 60_000));
-              try {
-                const retry = await this.refineUserStoryStrategic(
-                  `Como ${outline.persona ?? 'usuário'}, quero ${outline.title}. Contexto: ${outline.description}`
-                );
-                if (retry.refinedStories?.length) {
-                  const s = { ...retry.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature };
-                  stories.push(s);
-                }
-              } catch { /* desiste desta história após retry */ }
+          onProgress?.(`Fase 2/2: refinando ${refined}/${outlines.length} — "${outline.title}"...`);
+
+          const storyPrompt = `Como ${outline.persona ?? 'usuário'}, quero ${outline.title}. Contexto: ${outline.description}`;
+          let success = false;
+
+          for (let attempt = 1; attempt <= 3 && !success; attempt++) {
+            try {
+              const result = await this.refineUserStoryStrategic(storyPrompt);
+              if (result.refinedStories?.length) {
+                stories.push({ ...result.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature });
+                success = true;
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many');
+              if (isRateLimit && attempt < 3) {
+                const waitSec = attempt === 1 ? 65 : 130;
+                onProgress?.(`Rate limit (tentativa ${attempt}/3) — aguardando ${waitSec}s...`);
+                await new Promise(r => setTimeout(r, waitSec * 1000));
+              } else if (isRateLimit) {
+                rateLimitFailures++;
+              } else {
+                otherFailures++;
+                break; // erro não-rate-limit: não adianta retentaar
+              }
             }
           }
-          await new Promise(r => setTimeout(r, 2_000));
+
+          // Pausa entre histórias para não estourar tokens/minuto
+          await new Promise(r => setTimeout(r, 3_000));
         }
         if (stories.length > 0) {
           allItems.push({ epicSuggestion: epic, featureSuggestion: feature, refinedStories: stories });
         }
       }
+    }
+
+    const totalRefined = allItems.reduce((acc, g) => acc + g.refinedStories.length, 0);
+
+    if (totalRefined === 0 && outlines.length > 0) {
+      const detail = rateLimitFailures > 0
+        ? `Rate limit da API atingido em ${rateLimitFailures}/${outlines.length} histórias. Aguarde alguns minutos e tente novamente.`
+        : `${otherFailures} histórias falharam no refinamento. Verifique os logs do console para detalhes.`;
+      throw new Error(`Fase 1 identificou ${outlines.length} histórias, mas nenhuma foi refinada com sucesso. ${detail}`);
     }
 
     return allItems;
