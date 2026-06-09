@@ -32,7 +32,7 @@ export class GeminiService {
       messages: params.messages as OpenAI.Chat.ChatCompletionMessageParam[],
       response_format: params.response_format as OpenAI.ResponseFormatJSONObject | undefined,
       temperature: params.temperature,
-    });
+    }, { timeout: 90_000 });
     return result as unknown as { choices: { message: { content: string | null } }[] };
   }
 
@@ -154,13 +154,22 @@ export class GeminiService {
           let success = false;
 
           for (let attempt = 1; attempt <= 3 && !success; attempt++) {
+            // Timer para mostrar que está processando (atualiza a cada 5s)
+            let elapsed = 0;
+            const ticker = setInterval(() => {
+              elapsed += 5;
+              onProgress?.(`Fase 2/2: refinando ${refined}/${outlines.length} — "${outline.title}" (${elapsed}s)...`);
+            }, 5_000);
+
             try {
               const result = await this.refineUserStoryStrategic(storyPrompt);
+              clearInterval(ticker);
               if (result.refinedStories?.length) {
                 stories.push({ ...result.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature });
                 success = true;
               }
             } catch (err) {
+              clearInterval(ticker);
               const msg = err instanceof Error ? err.message : String(err);
               const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many');
               if (isRateLimit && attempt < 3) {
@@ -171,13 +180,12 @@ export class GeminiService {
                 rateLimitFailures++;
               } else {
                 otherFailures++;
-                break; // erro não-rate-limit: não adianta retentaar
+                break;
               }
             }
           }
 
-          // Pausa entre histórias para não estourar tokens/minuto
-          await new Promise(r => setTimeout(r, 3_000));
+          await new Promise(r => setTimeout(r, 500));
         }
         if (stories.length > 0) {
           allItems.push({ epicSuggestion: epic, featureSuggestion: feature, refinedStories: stories });
