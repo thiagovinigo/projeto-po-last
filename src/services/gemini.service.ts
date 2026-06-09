@@ -33,7 +33,7 @@ export class GeminiService {
       messages: params.messages as OpenAI.Chat.ChatCompletionMessageParam[],
       response_format: params.response_format as OpenAI.ResponseFormatJSONObject | undefined,
       temperature: params.temperature,
-    }, { timeout: 90_000 });
+    }, { timeout: 180_000 });
     return result as unknown as { choices: { message: { content: string | null } }[] };
   }
 

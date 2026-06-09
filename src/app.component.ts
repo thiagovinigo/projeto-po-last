@@ -455,7 +455,8 @@ ${story.testScenarios.unit}
       }
     } catch (err) {
       console.error(`Error during strategic validation:`, err);
-      this.error.set('Falha ao obter a validação da IA. Por favor, verifique sua chave de API e tente novamente.');
+      const msg = err instanceof Error ? err.message : String(err);
+      this.error.set(`Falha ao refinar a história: ${msg}`);
     } finally {
       this.isLoading.set(false);
       this.activeValidation.set(null);
