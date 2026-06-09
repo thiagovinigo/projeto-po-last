@@ -314,7 +314,19 @@ export class AppComponent implements OnInit {
   }
 
   viewStoryFromBacklog(story: BacklogItem): void {
-    this.viewingStory.set(story);
+    const result: StrategicRefinementResult = {
+      validationType: 'strategic',
+      model: story.model || 'gpt-4o',
+      divisionAnalysis: '',
+      refinedStories: [story]
+    };
+    this.validationResult.set(null);
+    this.validationResult.set(result);
+    this.error.set(null);
+    this.isLoading.set(false);
+    this.activeValidation.set(null);
+    this.storyAddedToBacklog.set({});
+    this.currentView.set('analyzer');
   }
 
   async reAnalyzeCurrentStory(story: RefinedStory): Promise<void> {
@@ -350,17 +362,7 @@ export class AppComponent implements OnInit {
           ));
           this.saveBacklogsToStorage();
         }
-        // Atualiza o drawer se estiver aberto, senão navega para o analyzer
-        if (this.viewingStory()) {
-          this.viewingStory.set(updatedStory);
-        } else {
-          const result2: StrategicRefinementResult = {
-            validationType: 'strategic', model: 'gpt-4o',
-            divisionAnalysis: '', refinedStories: [updatedStory]
-          };
-          this.validationResult.set(result2);
-          this.currentView.set('analyzer');
-        }
+        this.viewStoryFromBacklog(updatedStory);
       } else {
         this.validationResult.set(result);
         this.currentView.set('analyzer');
