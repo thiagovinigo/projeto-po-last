@@ -5,7 +5,8 @@ import { environment } from '../environments/environment';
 
 export type DocumentKind = 'prd' | 'spec';
 
-const MODEL = 'gpt-4o-mini';
+const MODEL = 'gpt-4o';           // refinamento completo — segue schema complexo
+const MODEL_FAST = 'gpt-4o-mini'; // descoberta e tarefas simples
 
 @Injectable({
   providedIn: 'root'
@@ -224,6 +225,7 @@ Sem markdown. Sem explicações. Sem texto fora do JSON.`;
     const documentChunk = content.substring(0, 25_000);
 
     const response = await this.chat({
+      model: MODEL_FAST,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: `Analise o documento abaixo e extraia todas as histórias de usuário:\n\n${documentChunk}` }
