@@ -67,6 +67,9 @@ export class AppComponent implements OnInit {
   // Per-story refinement
   refiningStoryId = signal<number | null>(null);
 
+  // Story drawer (visualização inline no backlog)
+  viewingStory = signal<BacklogItem | null>(null);
+
   // Project Info Conflict Modal
   projectInfoConflict = signal<{
     extracted: Partial<ProjectInfo>;
@@ -311,19 +314,7 @@ export class AppComponent implements OnInit {
   }
 
   viewStoryFromBacklog(story: BacklogItem): void {
-    const result: StrategicRefinementResult = {
-      validationType: 'strategic',
-      model: story.model || 'gpt-4o',
-      divisionAnalysis: '',
-      refinedStories: [story]
-    };
-    this.validationResult.set(null);
-    this.validationResult.set(result);
-    this.error.set(null);
-    this.isLoading.set(false);
-    this.activeValidation.set(null);
-    this.storyAddedToBacklog.set({});
-    this.currentView.set('analyzer');
+    this.viewingStory.set(story);
   }
 
   async reAnalyzeCurrentStory(story: RefinedStory): Promise<void> {
@@ -359,9 +350,20 @@ export class AppComponent implements OnInit {
           ));
           this.saveBacklogsToStorage();
         }
-        this.viewStoryFromBacklog(updatedStory);
+        // Atualiza o drawer se estiver aberto, senão navega para o analyzer
+        if (this.viewingStory()) {
+          this.viewingStory.set(updatedStory);
+        } else {
+          const result2: StrategicRefinementResult = {
+            validationType: 'strategic', model: 'gpt-4o',
+            divisionAnalysis: '', refinedStories: [updatedStory]
+          };
+          this.validationResult.set(result2);
+          this.currentView.set('analyzer');
+        }
       } else {
         this.validationResult.set(result);
+        this.currentView.set('analyzer');
       }
     } catch (err) {
       this.error.set(`Falha ao re-analisar: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
