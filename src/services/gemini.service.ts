@@ -119,6 +119,51 @@ export class GeminiService {
     return this.generateValidation<StrategicRefinementResult>(story, systemInstruction);
   }
 
+  // Refinamento leve para importação em lote — só campos essenciais, gpt-4o-mini
+  private async refineLiteForImport(outline: {
+    title: string; epic: string; feature: string; description: string; persona?: string;
+  }): Promise<RefinedStory> {
+    const system = `Você é um Analista de Produto Sênior. Gere uma user story refinada em português com os campos essenciais.
+Retorne APENAS JSON válido com esta estrutura exata (sem campos extras):
+{
+  "title": "string",
+  "epicSuggestion": "string",
+  "featureSuggestion": "string",
+  "userPersona": "string",
+  "businessNarrative": "string",
+  "interfaceDetails": "string",
+  "acceptanceCriteria": "string (3-5 cenários Gherkin: Dado/Quando/Então)",
+  "acceptanceCriteriaSummary": "string (bullet list)",
+  "storyEstimate": "string (ex: 8h)",
+  "storyEstimateJustification": "string (2 frases)",
+  "tasksTotalEstimate": "string (igual a storyEstimate)",
+  "riskAnalysis": [{ "type": "Técnico|Negócio|Usabilidade|Compliance|Rollout", "severity": "baixa|média|alta", "description": "string", "mitigationSuggestion": "string" }],
+  "developmentTasks": [{ "name": "string", "responsibility": "string", "description": "string", "justification": "string", "estimate": "string", "technicalJustification": "string" }],
+  "testScenarios": { "e2e": "", "integration": "", "unit": "" },
+  "potentialEdgeCases": [],
+  "technicalConsiderations": [],
+  "identifiedDependencies": [],
+  "questions": [],
+  "model": "${MODEL_FAST}"
+}
+Sem markdown. Sem texto fora do JSON.`;
+
+    const prompt = `Como ${outline.persona ?? 'usuário'}, quero ${outline.title}. Contexto: ${outline.description}. Épico: ${outline.epic}. Feature: ${outline.feature}.`;
+
+    const response = await this.chat({
+      model: MODEL_FAST,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3
+    });
+
+    const raw = response.choices[0].message.content?.trim() ?? '';
+    return JSON.parse(raw) as RefinedStory;
+  }
+
   async processDocumentForBacklog(
     documentContent: string,
     onProgress?: (step: string) => void
@@ -155,26 +200,15 @@ export class GeminiService {
           let success = false;
 
           for (let attempt = 1; attempt <= 3 && !success; attempt++) {
-            // Timer para mostrar que está processando (atualiza a cada 5s)
-            let elapsed = 0;
-            const ticker = setInterval(() => {
-              elapsed += 5;
-              onProgress?.(`Fase 2/2: refinando ${refined}/${outlines.length} — "${outline.title}" (${elapsed}s)...`);
-            }, 5_000);
-
             try {
-              const result = await this.refineUserStoryStrategic(storyPrompt);
-              clearInterval(ticker);
-              if (result.refinedStories?.length) {
-                stories.push({ ...result.refinedStories[0], epicSuggestion: epic, featureSuggestion: feature });
-                success = true;
-              }
+              const story = await this.refineLiteForImport(outline);
+              stories.push({ ...story, epicSuggestion: epic, featureSuggestion: feature });
+              success = true;
             } catch (err) {
-              clearInterval(ticker);
               const msg = err instanceof Error ? err.message : String(err);
               const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many');
               if (isRateLimit && attempt < 3) {
-                const waitSec = attempt === 1 ? 65 : 130;
+                const waitSec = attempt === 1 ? 30 : 60;
                 onProgress?.(`Rate limit (tentativa ${attempt}/3) — aguardando ${waitSec}s...`);
                 await new Promise(r => setTimeout(r, waitSec * 1000));
               } else if (isRateLimit) {
@@ -224,24 +258,33 @@ Sem markdown. Sem explicações. Sem texto fora do JSON.`;
     // 25 000 chars ≈ 6 000 tokens — capta documentos extensos sem estourar contexto
     const documentChunk = content.substring(0, 25_000);
 
-    const response = await this.chat({
-      model: MODEL_FAST,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: `Analise o documento abaixo e extraia todas as histórias de usuário:\n\n${documentChunk}` }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.2
-    });
-
-    const raw = response.choices[0].message.content?.trim() ?? '';
-    let parsed: { stories?: { title: string; epic: string; feature: string; description: string; persona?: string }[] };
+    let raw = '';
     try {
-      parsed = JSON.parse(raw) as typeof parsed;
-    } catch {
-      throw new Error(`A IA retornou uma resposta inválida na fase de descoberta. Resposta recebida: ${raw.substring(0, 200)}`);
+      const response = await this.chat({
+        model: MODEL_FAST,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: `Analise o documento abaixo e extraia todas as histórias de usuário:\n\n${documentChunk}` }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2
+      });
+      raw = response.choices[0].message.content?.trim() ?? '';
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isTimeout = msg.toLowerCase().includes('timeout') || msg.toLowerCase().includes('timed out');
+      throw new Error(isTimeout
+        ? 'Tempo limite excedido ao identificar histórias no documento. Tente com um arquivo menor ou tente novamente.'
+        : `Falha ao identificar histórias: ${msg}`
+      );
     }
-    return parsed.stories ?? [];
+
+    try {
+      const parsed = JSON.parse(raw) as { stories?: { title: string; epic: string; feature: string; description: string; persona?: string }[] };
+      return parsed.stories ?? [];
+    } catch {
+      throw new Error(`A IA retornou formato inválido na fase de descoberta. Tente novamente.`);
+    }
   }
 
   private async refineBatchFromDocument(_documentContent: string, _batchTitles: string): Promise<ExtractedBacklogItems[]> {
