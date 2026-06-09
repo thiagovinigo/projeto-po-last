@@ -590,11 +590,13 @@ ${story.testScenarios.unit}
         .map(f => `=== DOCUMENTO: ${f.name} ===\n\n${f.content}`)
         .join('\n\n---\n\n');
 
-      this.importStep.set('Extraindo histórias de usuário...');
-      const allExtractedItems = await this.geminiService.processDocumentForBacklog(combinedContent);
+      const allExtractedItems = await this.geminiService.processDocumentForBacklog(
+        combinedContent,
+        step => this.importStep.set(step)
+      );
 
       if (allExtractedItems.length === 0 || allExtractedItems.every(group => group.refinedStories.length === 0)) {
-        this.importError.set('A IA não conseguiu extrair nenhuma história de usuário acionável dos documentos fornecidos.');
+        this.importError.set('Nenhuma história foi extraída. Verifique se o documento contém requisitos, funcionalidades ou histórias de usuário legíveis.');
         return;
       }
 

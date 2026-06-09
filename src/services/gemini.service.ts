@@ -135,12 +135,18 @@ export class GeminiService {
     return this.generateValidation<StrategicRefinementResult>(story, systemInstruction);
   }
 
-  async processDocumentForBacklog(documentContent: string): Promise<ExtractedBacklogItems[]> {
-    // Fase 1: descoberta — extrai título, épico, feature e descrição curta de cada história
+  async processDocumentForBacklog(
+    documentContent: string,
+    onProgress?: (step: string) => void
+  ): Promise<ExtractedBacklogItems[]> {
+    // Fase 1: descoberta
+    onProgress?.('Fase 1/2: identificando histórias nos documentos...');
     const outlines = await this.discoverStoryOutlines(documentContent);
     if (outlines.length === 0) return [];
 
-    // Fase 2: refina cada história individualmente usando só a descrição extraída
+    onProgress?.(`Fase 1/2 concluída: ${outlines.length} histórias identificadas. Iniciando refinamento...`);
+
+    // Fase 2: refina cada história individualmente
     const allItems: ExtractedBacklogItems[] = [];
     const grouped: Record<string, Record<string, typeof outlines>> = {};
 
@@ -150,10 +156,13 @@ export class GeminiService {
       grouped[outline.epic][outline.feature].push(outline);
     }
 
+    let refined = 0;
     for (const epic of Object.keys(grouped)) {
       for (const feature of Object.keys(grouped[epic])) {
         const stories: RefinedStory[] = [];
         for (const outline of grouped[epic][feature]) {
+          refined++;
+          onProgress?.(`Fase 2/2: refinando história ${refined}/${outlines.length} — "${outline.title}"...`);
           try {
             const result = await this.refineUserStoryStrategic(
               `Como ${outline.persona ?? 'usuário'}, quero ${outline.title}. Contexto: ${outline.description}`
@@ -166,7 +175,7 @@ export class GeminiService {
             const msg = err instanceof Error ? err.message : String(err);
             const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit');
             if (isRateLimit) {
-              // Aguarda 60s e retenta uma vez antes de desistir desta história
+              onProgress?.(`Rate limit atingido — aguardando 60s antes de retomar...`);
               await new Promise(r => setTimeout(r, 60_000));
               try {
                 const retry = await this.refineUserStoryStrategic(
@@ -178,9 +187,7 @@ export class GeminiService {
                 }
               } catch { /* desiste desta história após retry */ }
             }
-            // história com outro erro é pulada silenciosamente
           }
-          // Pausa entre chamadas para não estourar rate limit da Groq
           await new Promise(r => setTimeout(r, 2_000));
         }
         if (stories.length > 0) {
@@ -210,23 +217,23 @@ Sem markdown. Sem explicações. Sem texto fora do JSON.`;
     // 25 000 chars ≈ 6 000 tokens — capta documentos extensos sem estourar contexto
     const documentChunk = content.substring(0, 25_000);
 
-    try {
-      const response = await this.chat({
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: `Analise o documento abaixo e extraia todas as histórias de usuário:\n\n${documentChunk}` }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2
-      });
+    const response = await this.chat({
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: `Analise o documento abaixo e extraia todas as histórias de usuário:\n\n${documentChunk}` }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.2
+    });
 
-      const raw = response.choices[0].message.content?.trim() ?? '';
-      const parsed = JSON.parse(raw) as { stories?: { title: string; epic: string; feature: string; description: string; persona?: string }[] };
-      return parsed.stories ?? [];
-    } catch (err) {
-      console.error('[discoverStoryOutlines] Falha na extração:', err);
-      return [];
+    const raw = response.choices[0].message.content?.trim() ?? '';
+    let parsed: { stories?: { title: string; epic: string; feature: string; description: string; persona?: string }[] };
+    try {
+      parsed = JSON.parse(raw) as typeof parsed;
+    } catch {
+      throw new Error(`A IA retornou uma resposta inválida na fase de descoberta. Resposta recebida: ${raw.substring(0, 200)}`);
     }
+    return parsed.stories ?? [];
   }
 
   private async refineBatchFromDocument(_documentContent: string, _batchTitles: string): Promise<ExtractedBacklogItems[]> {
