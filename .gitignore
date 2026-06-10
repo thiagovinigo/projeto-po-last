@@ -17,6 +17,14 @@ dist-ssr
 *.local
 .angular/cache
 
+# Test artifacts
+test-results/
+e2e-qa-report/
+e2e-qa-screenshots/
+e2e-screenshots/
+e2e-screenshots-feature/
+playwright-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

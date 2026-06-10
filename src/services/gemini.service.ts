@@ -5,8 +5,10 @@ import { environment } from '../environments/environment';
 
 export type DocumentKind = 'prd' | 'spec';
 
-const MODEL = 'gpt-4o';           // refinamento completo — segue schema complexo
-const MODEL_FAST = 'gpt-4o-mini'; // descoberta e tarefas simples
+// Modelos por provedor: Groq em dev, OpenAI em prod
+const isGroq = !!environment.baseUrl;
+const MODEL      = isGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o';
+const MODEL_FAST = isGroq ? 'llama-3.1-8b-instant'    : 'gpt-4o-mini';
 
 @Injectable({
   providedIn: 'root'
@@ -16,10 +18,16 @@ export class GeminiService {
 
   constructor() {
     const apiKey = environment.apiKey;
-    if (!apiKey || apiKey === '__OPENAI_API_KEY__') {
-      throw new Error('API key não configurada. Defina apiKey em src/environments/environment.ts');
+    const placeholder = isGroq ? '__GROQ_API_KEY__' : '__OPENAI_API_KEY__';
+    if (!apiKey || apiKey === placeholder) {
+      throw new Error(`API key não configurada. Defina apiKey em src/environments/environment.ts`);
     }
-    this.openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+    const options: ConstructorParameters<typeof OpenAI>[0] = {
+      apiKey,
+      dangerouslyAllowBrowser: true,
+      ...(environment.baseUrl ? { baseURL: environment.baseUrl } : {}),
+    };
+    this.openai = new OpenAI(options);
   }
 
   private async chat(params: {
@@ -670,5 +678,59 @@ Responda APENAS com o JSON. Sem markdown. Sem explicações.`;
         throw new Error('Falha ao analisar ou receber uma resposta válida do modelo de IA, mesmo após a tentativa de correção.');
       }
     }
+  }
+
+  async chatWithPOExpert(
+    messages: { role: 'user' | 'assistant'; content: string }[],
+    story: RefinedStory
+  ): Promise<string> {
+    const storyCtx = JSON.stringify({
+      title: story.title,
+      epic: story.epicSuggestion,
+      feature: story.featureSuggestion,
+      userPersona: story.userPersona,
+      businessNarrative: story.businessNarrative,
+      acceptanceCriteriaSummary: story.acceptanceCriteriaSummary,
+      acceptanceCriteria: story.acceptanceCriteria,
+      storyEstimate: story.storyEstimate,
+      riskAnalysis: story.riskAnalysis,
+      questions: story.questions,
+      potentialEdgeCases: story.potentialEdgeCases,
+      technicalConsiderations: story.technicalConsiderations,
+      identifiedDependencies: story.identifiedDependencies,
+    }, null, 2);
+
+    const system = `Você é um especialista sênior em Product Management Ágil e Discovery de Produto com profundo domínio de:
+- Escrita e refinamento de User Stories (critérios INVEST)
+- Critérios de Aceitação em formato BDD/Gherkin (Dado-Quando-Então)
+- Técnicas de Discovery (Árvore de Oportunidades e Soluções de Teresa Torres)
+- Mapeamento de suposições (desejabilidade, viabilidade, viabilidade técnica, usabilidade)
+- Planejamento de Sprint, priorização de backlog e rastreamento de velocidade
+- Análise de riscos, dependências e desmembramento de épicos
+
+A história de usuário em análise é:
+\`\`\`json
+${storyCtx}
+\`\`\`
+
+Seu papel nesta conversa:
+1. Ajudar a melhorar a qualidade e clareza desta história
+2. Identificar gaps nos critérios de aceite e sugerir cenários faltantes
+3. Questionar suposições e validar o valor de negócio (framework INVEST)
+4. Sugerir melhorias de escopo, estimativas e decomposição
+5. Apoiar decisões de priorização e planejamento de sprint
+
+Responda sempre em português, de forma objetiva e direta. Use markdown para estruturar respostas longas.`;
+
+    const response = await this.chat({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: system },
+        ...messages,
+      ],
+      temperature: 0.7,
+    });
+
+    return response.choices[0].message.content ?? '';
   }
 }

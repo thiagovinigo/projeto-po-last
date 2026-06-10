@@ -1,69 +1,78 @@
-# CLAUDE.md — PO Agent AI
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Projeto
 
-**PO Agent AI** — ferramenta web Angular para Product Owners refinarem histórias de usuário, gerar backlog estruturado e exportar documentos de produto enriquecidos com análise de dependências e riscos, usando Groq (Llama 3.3 70B) como motor de IA.
+**PO Agent AI** — ferramenta web Angular para Product Owners refinarem histórias de usuário, gerar backlog estruturado e exportar documentos de produto enriquecidos com análise de dependências e riscos, usando OpenAI (GPT-4o) como motor de IA.
 
 ## Stack
 
 | Camada | Tecnologia |
 |--------|-----------|
 | Framework | Angular 20 (standalone, zoneless, OnPush) |
-| IA | Groq SDK — `llama-3.3-70b-versatile` |
+| IA | OpenAI SDK (`openai` npm) — `gpt-4o` / `gpt-4o-mini` |
 | Auth | Supabase (email/senha) |
 | Estilos | TailwindCSS (CDN) + marked.js (CDN) |
-| Build | `@angular/build:application` (esbuild + Vite dev) |
+| Build | `@angular/build:application` (esbuild) |
 | Persistência | localStorage (backlogs/histórico) + Supabase (auth) |
 | PDF/Word | pdfjs-dist + mammoth |
+| Deploy | Vercel (frontend) + Railway (server) |
 
-## Como Rodar Localmente
+## Comandos
 
 ```bash
-npm install
-npm run dev -- --port 4200   # porta 3000 ocupada por outro projeto local
+# Desenvolvimento (angular.json defaulta para porta 3000; use 4200 se 3000 estiver ocupada)
+npm run dev -- --port 4200
+
+# Build de produção (OBRIGATÓRIO rodar após qualquer mudança de template)
+npm run build
+
+# Type-check sem build
+npx tsc --noEmit
+
+# E2E (Playwright — vários configs para cenários diferentes)
+npx playwright test --config=playwright.debug.config.ts
+npx playwright test --config=playwright.deployed.config.ts
+
+# Backend (server/)
+cd server && npm install && npm run dev
 ```
 
 Usuário de teste: `teste@teste.com` / `teste123`
 
-A API key do Groq está em `src/environments/environment.ts` (`apiKey`). Não commitar com chave real — o git usa `skip-worktree` neste arquivo. Restaurar a chave localmente após clonar.
+## Arquitetura
 
-## Comandos Úteis
-
-```bash
-npm run dev -- --port 4200   # servidor de desenvolvimento
-npm run build                # build de produção (sempre rodar após mudanças de template)
-npm run preview              # preview do build de produção
-npx tsc --noEmit             # type-check sem build
-```
-
-## Estrutura de Arquivos
+### Estrutura de Arquivos
 
 ```
 src/
-├── app.component.ts/html        # God Component: analyzer + backlog + import + modais
-├── shell.component.ts           # Shell com router-outlet + auth.initSession()
+├── app.component.ts/html        # "God Component" do projeto — analyzer + backlog + modais
+├── shell.component.ts           # Shell com <router-outlet> + auth.initSession()
+├── index.tsx                    # Entry point (não index.html — ver angular.json "browser")
 ├── app/
-│   ├── app.routes.ts            # /login /register / /project/:name
+│   ├── app.routes.ts            # Rotas com lazy-load + authGuard
 │   ├── core/
 │   │   ├── config/supabase.client.ts
 │   │   ├── guards/auth.guard.ts
 │   │   └── services/auth.service.ts
 │   └── features/
 │       ├── auth/login|register
-│       ├── dashboard/           # Lista de projetos (backlogs)
+│       ├── dashboard/           # Lista de projetos (backlogs por usuário)
 │       ├── document-viewer/     # Visualizador de PRD/spec gerado
 │       └── project-info/        # Painel de info do projeto (editável)
 ├── services/
-│   ├── gemini.service.ts        # Cliente Groq (nome histórico — usa Groq, não Gemini)
-│   ├── document.service.ts      # Parse de PDF/Word
-│   └── document-export.service.ts # Exportação: PRD/spec/markdown/.feature
-├── models/validation.model.ts   # Todos os tipos TypeScript
+│   ├── gemini.service.ts        # Cliente OpenAI (nome histórico — NÃO renomear)
+│   ├── document.service.ts      # Parse de PDF/Word via pdfjs-dist + mammoth
+│   └── document-export.service.ts # Export: PRD/spec/markdown/.feature
+├── models/validation.model.ts   # Todos os tipos TypeScript do domínio
 └── environments/
-    ├── environment.ts           # Dev (apiKey Groq + Supabase — não commitar chave real)
-    └── environment.prod.ts      # Prod
+    ├── environment.ts           # Dev (apiKey OpenAI — protegido por skip-worktree)
+    └── environment.prod.ts      # Prod (apiKey injetada pelo Vercel via sed)
+server/                          # Backend Express (Railway)
 ```
 
-## Rotas
+### Roteamento
 
 | Rota | Componente | Auth |
 |------|-----------|------|
@@ -72,59 +81,40 @@ src/
 | `/` | DashboardComponent | protegida |
 | `/project/:name` | AppComponent | protegida |
 
-## Funcionalidades Implementadas
+Todas as rotas usam `loadComponent` (lazy). O `authGuard` é funcional (`CanActivateFn`).
 
-### Backlog
-- Hierarquia Épico > Feature > História
-- Edição inline de título (duplo clique → Enter salva / Esc cancela)
-- Modal de edição completo (botão lápis)
-- Reordenação up/down
-- Botões de análise IA no header: **Dependências** e **Riscos** (abrem modal estruturado)
+### GeminiService — Cliente OpenAI
 
-### Analyzer
-- Refinamento estratégico de histórias via IA
-- Export `.feature` por história (Cucumber/Playwright)
-- "Detalhar com IA" para expandir Gherkin
-- Geração de: C4 Contexto · C4 Contêineres · Diagrama de Sequência
-- Conversão de testes para Jest/Mocha
+`src/services/gemini.service.ts` é o único ponto de chamada à API de IA. O nome "Gemini" é histórico — o serviço usa `openai` npm com OpenAI.
+
+- `MODEL = 'gpt-4o'` — refinamento completo (schema complexo)
+- `MODEL_FAST = 'gpt-4o-mini'` — descoberta e tarefas simples
+- Todas as respostas estruturadas usam `response_format: { type: 'json_object' }`
+- Auto-correção: segunda tentativa com `temperature: 0.0` em caso de falha de parse
+- Timeout: 180 segundos por chamada
 
 ### Geração de Documentos (PRD / Spec)
-O fluxo enriquecido ao clicar em "Gerar PRD.md" ou "Gerar spec.md":
-1. Roda `analyzeBacklogDependencies()` + `analyzeBacklogRisks()` em **paralelo**
-2. Serializa os resultados em seções markdown
-3. Anexa ao draft antes de passar para `generateProjectDocument()`
-4. Label do botão mostra o passo atual: "Analisando dependências e riscos..." → "Gerando PRD..."
 
-### Risk Radar
-`Risk.type` inclui: `'Técnico' | 'Negócio' | 'Usabilidade' | 'Compliance' | 'Rollout'`  
-`Risk.severity?` opcional: `'baixa' | 'média' | 'alta'` — badges coloridos na UI
+Ao clicar em "Gerar PRD.md" ou "Gerar spec.md", `AppComponent` orquestra:
+1. `analyzeBacklogDependencies()` + `analyzeBacklogRisks()` em **paralelo**
+2. Resultados serializados em seções markdown
+3. Draft enriquecido passado para `generateProjectDocument()`
+4. Label do botão reflete o passo atual durante o processo
 
-### Dashboard
-- Skeleton loading com `animate-pulse` enquanto projetos carregam
+## Convenções
 
-## Padrões IA (GeminiService)
-
-- Todas as chamadas passam por `src/services/gemini.service.ts`
-- Respostas estruturadas: `response_format: { type: 'json_object' }`
-- Schema completo descrito no system prompt
-- Auto-correção de JSON: segunda tentativa com `temperature: 0.0` em caso de falha
-- Modelo único: `llama-3.3-70b-versatile` (constante `MODEL`)
-
-## Convenções de Código
-
-- **Componentes**: standalone, `ChangeDetectionStrategy.OnPush`, `inject()` (sem constructor injection)
+- **Componentes**: standalone, `ChangeDetectionStrategy.OnPush`, `inject()` — sem constructor injection
 - **Estado**: Signals (`signal`, `computed`) — sem RxJS nos componentes
-- **Formulários**: Template-driven com `ngModel` (padrão do projeto)
-- **Tipos**: todos em `src/models/validation.model.ts` — nunca remover campos existentes de `RefinedStory`
+- **Formulários**: Template-driven com `ngModel` (padrão do projeto; não migrar para Reactive Forms sem necessidade)
+- **Tipos**: todos em `src/models/validation.model.ts` — nunca remover campos existentes de `RefinedStory`; novos campos sempre opcionais (`campo?: tipo`)
 - **Imutabilidade**: spread `{...obj}` ao atualizar estado — nunca mutar diretamente
-- **Novos campos em `RefinedStory`**: sempre opcionais (`campo?: tipo`)
 
-## Segurança
+## Segurança / API Key
 
-- API key nunca commitada — usar placeholder `__GROQ_API_KEY__` no git
-- `git update-index --skip-worktree src/environments/environment.ts` para ignorar mudanças locais
+- `environment.ts` usa placeholder `__OPENAI_API_KEY__` — protegido por `git update-index --skip-worktree`
+- No Vercel, o build injeta a chave via `sed -i "s|__OPENAI_API_KEY__|$OPENAI_API_KEY|g" src/environments/environment.prod.ts`
 - Supabase anon key é pública por design (RLS no banco)
-- Auth guard protege todas as rotas de produto
+- Para restaurar a chave localmente após clonar: editar `src/environments/environment.ts` e rodar `git update-index --skip-worktree src/environments/environment.ts`
 
 ## PRPs Planejados
 
@@ -141,11 +131,3 @@ O fluxo enriquecido ao clicar em "Gerar PRD.md" ou "Gerar spec.md":
 | `dor-gatekeeper.plan.md` | US-014 | pendente |
 | `persona-context-engine.plan.md` | US-015 | pendente |
 | `sprint-simulation.plan.md` | US-016 | pendente |
-
-## Regras ECC Instaladas
-
-`.claude/rules/ecc/` contém:
-- `common/` — coding style, git workflow, testing, security
-- `angular/` — signals, OnPush, inject(), standalone, forms
-- `typescript/` — tipos explícitos, sem `any`
-- `web/` — performance, CSP, animações, design quality

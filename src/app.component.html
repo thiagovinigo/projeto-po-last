@@ -51,6 +51,12 @@
                 <span>{{ isGeneratingArtifact() === 'spec' ? (generatingArtifactStep() ?? 'Gerando...') : 'Gerar spec.md' }}</span>
               </button>
             }
+            <button (click)="showAnalyzer()"
+              class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer"
+              style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.35); color:#a5b4fc">
+              <i class="fas fa-magic text-xs"></i>
+              <span>Analisar história</span>
+            </button>
             <button (click)="showImporter()"
               class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer"
               style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.35); color:var(--accent-emerald)">
@@ -136,6 +142,11 @@
                                       {{ story.sourceFile.length > 24 ? story.sourceFile.slice(0, 22) + '…' : story.sourceFile }}
                                     </span>
                                   }
+                                  @if (story.refinedByAI) {
+                                    <span class="inline-flex items-center gap-1 text-xs text-emerald-300 bg-emerald-900/30 border border-emerald-700/50 rounded px-1.5 py-0.5">
+                                      <i class="fas fa-check-circle text-xs"></i>Refinado IA
+                                    </span>
+                                  }
                                   @if (story.isLiteImport) {
                                     <span class="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-900/30 border border-amber-800/50 rounded px-1.5 py-0.5" title="Importada em modo rápido — clique em Refinar para ver detalhes completos">
                                       <i class="fas fa-bolt text-xs"></i>
@@ -151,11 +162,14 @@
                                 <i class="fas fa-eye text-xs"></i>
                               </button>
                               <button (click)="refineStoryInBacklog(story)"
-                                [disabled]="refiningStoryId() === story.id"
-                                [title]="story.isLiteImport ? 'Refinar com IA completa (gpt-4o)' : 'Re-analisar com IA'"
-                                class="p-1.5 rounded-md text-gray-400 hover:text-purple-300 hover:bg-purple-900/30 transition disabled:opacity-40 disabled:cursor-wait">
+                                [disabled]="refiningStoryId() === story.id || !!story.refinedByAI"
+                                [title]="story.refinedByAI ? 'Já refinado — edite para refinar novamente' : story.isLiteImport ? 'Refinar com IA completa' : 'Re-analisar com IA'"
+                                class="p-1.5 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                [class]="story.refinedByAI ? 'text-emerald-500' : 'text-gray-400 hover:text-purple-300 hover:bg-purple-900/30'">
                                 @if (refiningStoryId() === story.id) {
                                   <i class="fas fa-spinner fa-spin text-xs text-purple-400"></i>
+                                } @else if (story.refinedByAI) {
+                                  <i class="fas fa-check text-xs"></i>
                                 } @else {
                                   <i class="fas fa-magic text-xs"></i>
                                 }

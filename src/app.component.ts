@@ -133,16 +133,17 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     const projectName = this.route.snapshot.paramMap.get('name');
-    void this.initProjects(projectName ? decodeURIComponent(projectName) : null);
+    const view = this.route.snapshot.queryParamMap.get('view') as 'backlog' | 'analyzer' | 'import' | null;
+    void this.initProjects(projectName ? decodeURIComponent(projectName) : null, view);
   }
 
-  private async initProjects(initialProjectName: string | null): Promise<void> {
+  private async initProjects(initialProjectName: string | null, initialView: 'backlog' | 'analyzer' | 'import' | null = null): Promise<void> {
     try {
       const backlogs = await this.projectService.loadProjects();
       this.backlogs.set(backlogs);
       if (initialProjectName) {
         this.selectedBacklogName.set(initialProjectName);
-        this.currentView.set('backlog');
+        this.currentView.set(initialView ?? 'backlog');
       } else if (backlogs.length > 0 && !this.selectedBacklogName()) {
         this.selectedBacklogName.set(backlogs[0].projectName);
       }
@@ -207,6 +208,35 @@ export class AppComponent implements OnInit {
     }, 2000);
   }
 
+  private addStoriesToBacklogBatch(stories: RefinedStory[]): void {
+    const active = this.activeBacklog();
+    if (!active) return;
+
+    const baseOrder = active.items.length;
+    const now = Date.now();
+    const newItems: BacklogItem[] = stories.map((story, idx) => ({
+      ...story,
+      id: now + idx + Math.random(),
+      order: baseOrder + idx,
+    }));
+
+    this.backlogs.update(backlogs =>
+      backlogs.map(b =>
+        b.projectName === active.projectName
+          ? { ...b, items: [...b.items, ...newItems] }
+          : b
+      )
+    );
+    this.saveActiveProject(); // único save — sem race condition
+
+    stories.forEach((_, idx) => {
+      this.storyAddedToBacklog.update(s => ({ ...s, [idx]: true }));
+      setTimeout(() => {
+        this.storyAddedToBacklog.update(s => ({ ...s, [idx]: false }));
+      }, 2000);
+    });
+  }
+
   isStoryInBacklog(storyTitle: string): boolean {
     const active = this.activeBacklog();
     if (!active) return false;
@@ -261,10 +291,11 @@ export class AppComponent implements OnInit {
     const active = this.activeBacklog();
     if (!editedStory || !active) return;
 
-    this.backlogs.update(backlogs => 
-      backlogs.map(b => 
+    const storyWithReset: BacklogItem = { ...editedStory, refinedByAI: false };
+    this.backlogs.update(backlogs =>
+      backlogs.map(b =>
         b.projectName === active.projectName
-        ? { ...b, items: b.items.map(item => item.id === editedStory.id ? editedStory : item) }
+        ? { ...b, items: b.items.map(item => item.id === storyWithReset.id ? storyWithReset : item) }
         : b
       )
     );
@@ -289,7 +320,7 @@ export class AppComponent implements OnInit {
     this.backlogs.update(backlogs =>
       backlogs.map(b =>
         b.projectName === active.projectName
-          ? { ...b, items: b.items.map(item => item.id === id ? { ...item, title } : item) }
+          ? { ...b, items: b.items.map(item => item.id === id ? { ...item, title, refinedByAI: false } : item) }
           : b
       )
     );
@@ -315,19 +346,9 @@ export class AppComponent implements OnInit {
   }
 
   viewStoryFromBacklog(story: BacklogItem): void {
-    const result: StrategicRefinementResult = {
-      validationType: 'strategic',
-      model: story.model || 'gpt-4o',
-      divisionAnalysis: '',
-      refinedStories: [story]
-    };
-    this.validationResult.set(null);
-    this.validationResult.set(result);
-    this.error.set(null);
-    this.isLoading.set(false);
-    this.activeValidation.set(null);
-    this.storyAddedToBacklog.set({});
-    this.currentView.set('analyzer');
+    const projectName = this.selectedBacklogName();
+    if (!projectName) return;
+    this.router.navigate(['/project', encodeURIComponent(projectName), 'story', story.id]);
   }
 
   async reAnalyzeCurrentStory(story: RefinedStory): Promise<void> {
@@ -394,6 +415,7 @@ export class AppComponent implements OnInit {
           featureSuggestion: story.featureSuggestion,
           sourceFile: story.sourceFile,
           isLiteImport: false,
+          refinedByAI: true,
         };
         const active = this.activeBacklog();
         if (active) {
@@ -539,8 +561,8 @@ ${story.testScenarios.unit}
     try {
       const result = await this.geminiService.refineUserStoryStrategic(this.userStory());
       this.validationResult.set(result);
-      if (result.validationType === 'strategic' && result.refinedStories) {
-          result.refinedStories.forEach((_, idx) => this.addStoryToBacklog(idx));
+      if (result.validationType === 'strategic' && result.refinedStories?.length) {
+        this.addStoriesToBacklogBatch(result.refinedStories);
       }
     } catch (err) {
       console.error(`Error during strategic validation:`, err);
