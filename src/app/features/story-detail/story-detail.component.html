@@ -1,0 +1,440 @@
+<div class="flex flex-col h-screen overflow-hidden bg-gray-950 text-gray-100">
+
+  <!-- ===== HEADER ===== -->
+  <header class="shrink-0 h-14 bg-gray-900 border-b border-gray-700/60 flex items-center px-4 gap-3 z-10">
+    <button (click)="goBack()" title="Voltar ao backlog"
+      class="flex items-center gap-1.5 text-gray-400 hover:text-white transition text-sm">
+      <i class="fas fa-arrow-left"></i>
+      <span class="hidden sm:inline">Backlog</span>
+    </button>
+
+    <span class="text-gray-700">|</span>
+
+    @if (currentStory(); as s) {
+      <div class="flex items-center gap-1.5 text-xs min-w-0 flex-1 truncate">
+        <span class="text-orange-400 truncate">{{ s.epicSuggestion }}</span>
+        <span class="text-gray-600">›</span>
+        <span class="text-purple-400 truncate">{{ s.featureSuggestion }}</span>
+        <span class="text-gray-600">›</span>
+        <span class="text-gray-200 font-semibold truncate">{{ s.title }}</span>
+      </div>
+    } @else {
+      <span class="text-gray-500 text-sm flex-1">Carregando...</span>
+    }
+
+  </header>
+
+  <!-- ===== 3 COLUMNS ===== -->
+  <div class="flex flex-1 min-h-0">
+
+    <!-- ===== LEFT: BACKLOG TREE ===== -->
+    <aside class="w-72 shrink-0 border-r border-gray-700/60 overflow-y-auto bg-gray-900/40 flex flex-col">
+      <div class="px-4 py-3 border-b border-gray-700/40 flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+          <i class="fas fa-stream"></i> Backlog
+        </span>
+        @if (backlog(); as b) {
+          <span class="text-xs text-gray-600">{{ b.items.length }} histórias</span>
+        }
+      </div>
+
+      @if (isLoading()) {
+        <div class="flex-1 flex items-center justify-center">
+          <i class="fas fa-spinner fa-spin text-gray-600"></i>
+        </div>
+      } @else {
+        <div class="flex-1 py-2">
+          @for (epic of objectKeys(groupedBacklog()); track epic) {
+            <div class="mb-1">
+              <!-- Epic header -->
+              <button (click)="toggleEpic(epic)"
+                class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-800/50 transition group">
+                <i class="fas text-xs text-gray-500 transition"
+                   [class.fa-chevron-right]="collapsedEpics().has(epic)"
+                   [class.fa-chevron-down]="!collapsedEpics().has(epic)"></i>
+                <span class="text-xs font-semibold text-orange-400 truncate flex-1">{{ epic }}</span>
+              </button>
+
+              @if (!collapsedEpics().has(epic)) {
+                @for (feat of objectKeys(groupedBacklog()[epic]); track feat) {
+                  <div class="ml-3">
+                    <!-- Feature label -->
+                    <div class="flex items-center gap-2 px-3 py-1.5">
+                      <i class="fas fa-folder text-xs text-purple-500/70"></i>
+                      <span class="text-xs text-purple-400/80 truncate">{{ feat }}</span>
+                    </div>
+
+                    <!-- Stories -->
+                    @for (story of groupedBacklog()[epic][feat]; track story.id) {
+                      <button (click)="navigateToStory(story)"
+                        class="w-full flex items-start gap-2 px-4 py-2 text-left transition rounded-md mx-1 my-0.5"
+                        [class.bg-blue-600/20]="isCurrentStory(story)"
+                        [class.border-l-2]="isCurrentStory(story)"
+                        [class.border-blue-500]="isCurrentStory(story)"
+                        [class.text-white]="isCurrentStory(story)"
+                        [class.text-gray-400]="!isCurrentStory(story)"
+                        [class.hover:bg-gray-800/50]="!isCurrentStory(story)">
+                        <i class="fas fa-bookmark text-xs mt-0.5 shrink-0"
+                           [class.text-blue-400]="isCurrentStory(story)"
+                           [class.text-gray-600]="!isCurrentStory(story)"></i>
+                        <span class="text-xs leading-snug">{{ story.title }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+        </div>
+      }
+    </aside>
+
+    <!-- ===== CENTER: STORY CONTENT ===== -->
+    <main class="flex-1 overflow-y-auto">
+      @if (isLoading()) {
+        <div class="flex h-full items-center justify-center">
+          <i class="fas fa-spinner fa-spin text-gray-600 text-2xl"></i>
+        </div>
+      } @else if (currentStory(); as story) {
+        <div class="max-w-3xl mx-auto px-6 py-5 space-y-4">
+
+          <!-- Story header + actions -->
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <h1 class="text-lg font-bold text-white leading-snug">{{ story.title }}</h1>
+              <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                @if (story.storyEstimate) {
+                  <span class="inline-flex items-center gap-1 text-xs text-yellow-300 bg-yellow-900/30 border border-yellow-800/40 rounded px-1.5 py-0.5">
+                    <i class="fas fa-stopwatch text-xs"></i>{{ story.storyEstimate }}
+                  </span>
+                }
+                @if (story.refinedByAI) {
+                  <span class="inline-flex items-center gap-1 text-xs text-emerald-300 bg-emerald-900/30 border border-emerald-700/50 rounded px-1.5 py-0.5">
+                    <i class="fas fa-check-circle text-xs"></i>Refinado IA
+                  </span>
+                }
+                @if (story.isLiteImport) {
+                  <span class="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-900/30 border border-amber-800/40 rounded px-1.5 py-0.5">
+                    <i class="fas fa-bolt text-xs"></i>Lite
+                  </span>
+                }
+                @if (story.sourceFile) {
+                  <span class="inline-flex items-center gap-1 text-xs text-cyan-400 bg-cyan-900/30 border border-cyan-800/40 rounded px-1.5 py-0.5">
+                    <i class="fas fa-file-import text-xs"></i>
+                    {{ story.sourceFile.length > 28 ? story.sourceFile.slice(0, 26) + '…' : story.sourceFile }}
+                  </span>
+                }
+              </div>
+            </div>
+
+            <button (click)="refineStory()" [disabled]="isRefining() || !!story.refinedByAI"
+              [title]="story.refinedByAI ? 'Já refinado — edite a história para refinar novamente' : 'Refinar com IA'"
+              class="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+              style="background:rgba(109,40,217,0.5); color:#ddd6fe;">
+              @if (isRefining()) {
+                <i class="fas fa-spinner fa-spin text-xs"></i><span>Refinando...</span>
+              } @else if (story.refinedByAI) {
+                <i class="fas fa-check text-xs"></i><span>Refinado</span>
+              } @else {
+                <i class="fas fa-magic text-xs"></i><span>Refinar com IA</span>
+              }
+            </button>
+          </div>
+
+          @if (refineError()) {
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/30 border border-red-700/40 text-red-300 text-xs">
+              <i class="fas fa-exclamation-circle shrink-0"></i>{{ refineError() }}
+            </div>
+          }
+
+          @if (story.isLiteImport) {
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-700/40 text-amber-300 text-xs">
+              <i class="fas fa-bolt shrink-0"></i>
+              Importada em modo rápido — clique em <strong class="mx-1">Refinar com IA</strong> para gerar análise completa.
+            </div>
+          }
+
+          <!-- User Persona -->
+          @if (story.userPersona) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-sky-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-user-circle"></i>Visão do Usuário
+              </h4>
+              <div class="text-gray-300 text-sm prose prose-sm max-w-none" [innerHTML]="markdownToHtml(story.userPersona)"></div>
+            </section>
+          }
+
+          <!-- Business Narrative -->
+          @if (story.businessNarrative) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-teal-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-briefcase"></i>Narrativa de Negócio
+              </h4>
+              <div class="text-gray-300 text-sm prose prose-sm max-w-none" [innerHTML]="markdownToHtml(story.businessNarrative)"></div>
+            </section>
+          }
+
+          <!-- Acceptance Criteria Summary -->
+          @if (story.acceptanceCriteriaSummary) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-green-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-check-double"></i>Resumo dos Critérios
+              </h4>
+              <div class="text-gray-300 text-sm prose prose-sm max-w-none" [innerHTML]="markdownToHtml(story.acceptanceCriteriaSummary)"></div>
+            </section>
+          }
+
+          <!-- Acceptance Criteria BDD -->
+          @if (story.acceptanceCriteria) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-blue-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-tasks"></i>Critérios de Aceite (BDD / Gherkin)
+              </h4>
+              <div class="text-gray-300 text-sm prose prose-sm max-w-none" [innerHTML]="markdownToHtml(story.acceptanceCriteria)"></div>
+            </section>
+          }
+
+          <!-- Test Scenarios -->
+          @if (story.testScenarios?.e2e) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-red-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-vial"></i>Cenários de Teste E2E
+              </h4>
+              <div class="text-gray-300 text-sm prose prose-sm max-w-none" [innerHTML]="markdownToHtml(story.testScenarios.e2e)"></div>
+            </section>
+          }
+
+          @if (story.testScenarios?.integration) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-violet-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-plug"></i>Testes de Integração
+              </h4>
+              <div class="text-gray-300 text-sm prose prose-sm max-w-none" [innerHTML]="markdownToHtml(story.testScenarios.integration)"></div>
+            </section>
+          }
+
+          @if (story.testScenarios?.unit) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-sky-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-cube"></i>Testes Unitários
+              </h4>
+              <div class="text-gray-300 text-sm prose prose-sm max-w-none" [innerHTML]="markdownToHtml(story.testScenarios.unit)"></div>
+            </section>
+          }
+
+          <!-- Development Tasks -->
+          @if (story.developmentTasks?.length) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-indigo-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-code"></i>Tarefas de Desenvolvimento
+                <span class="ml-auto text-yellow-300 normal-case font-normal">Total: {{ story.tasksTotalEstimate }}</span>
+              </h4>
+              <div class="space-y-2">
+                @for (task of story.developmentTasks; track task.name) {
+                  <div class="flex items-start gap-2 text-xs">
+                    <span class="shrink-0 px-1.5 py-0.5 rounded bg-indigo-900/50 text-indigo-300 font-semibold">{{ task.estimate }}</span>
+                    <div>
+                      <span class="text-gray-200 font-medium">{{ task.name }}</span>
+                      <span class="text-gray-500 mx-1">·</span>
+                      <span class="text-gray-500">{{ task.responsibility }}</span>
+                      @if (task.description) {
+                        <p class="text-gray-400 mt-0.5">{{ task.description }}</p>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- Risk Analysis -->
+          @if (story.riskAnalysis?.length) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-orange-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-exclamation-triangle"></i>Análise de Riscos
+              </h4>
+              <div class="space-y-2">
+                @for (risk of story.riskAnalysis; track risk.description) {
+                  <div class="flex items-start gap-2">
+                    <span class="shrink-0 text-xs px-1.5 py-0.5 rounded font-semibold"
+                      [class]="risk.severity === 'alta' ? 'bg-red-900/60 text-red-300' :
+                               risk.severity === 'média' ? 'bg-yellow-900/60 text-yellow-300' :
+                               'bg-green-900/60 text-green-300'">
+                      {{ risk.severity ?? 'média' }}
+                    </span>
+                    <span class="shrink-0 text-xs text-gray-400 font-semibold pt-0.5">{{ risk.type }}</span>
+                    <div class="text-xs pt-0.5">
+                      <p class="text-gray-300">{{ risk.description }}</p>
+                      @if (risk.mitigationSuggestion) {
+                        <p class="text-gray-500 mt-1"><span class="text-gray-600">Mitigação:</span> {{ risk.mitigationSuggestion }}</p>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- Potential Edge Cases -->
+          @if (story.potentialEdgeCases?.length) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-amber-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-random"></i>Casos Extremos
+              </h4>
+              <ul class="space-y-1">
+                @for (ec of story.potentialEdgeCases; track ec) {
+                  <li class="text-gray-300 text-xs flex items-start gap-2">
+                    <i class="fas fa-circle text-gray-600 text-xs mt-1 shrink-0"></i>{{ ec }}
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
+          <!-- Technical Considerations -->
+          @if (story.technicalConsiderations?.length) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-cogs"></i>Considerações Técnicas
+              </h4>
+              <ul class="space-y-1">
+                @for (tc of story.technicalConsiderations; track tc) {
+                  <li class="text-gray-300 text-xs flex items-start gap-2">
+                    <i class="fas fa-circle text-gray-600 text-xs mt-1 shrink-0"></i>{{ tc }}
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
+          <!-- Identified Dependencies -->
+          @if (story.identifiedDependencies?.length) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-lime-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-link"></i>Dependências Identificadas
+              </h4>
+              <ul class="space-y-1">
+                @for (dep of story.identifiedDependencies; track dep) {
+                  <li class="text-gray-300 text-xs flex items-start gap-2">
+                    <i class="fas fa-circle text-gray-600 text-xs mt-1 shrink-0"></i>{{ dep }}
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
+          <!-- Open Questions -->
+          @if (story.questions?.length) {
+            <section class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/40">
+              <h4 class="text-xs font-semibold text-pink-400 mb-2 flex items-center gap-2 uppercase tracking-wide">
+                <i class="fas fa-question-circle"></i>Dúvidas em Aberto
+              </h4>
+              <ul class="space-y-1">
+                @for (q of story.questions; track q) {
+                  <li class="text-gray-300 text-xs flex items-start gap-2">
+                    <i class="fas fa-circle text-gray-600 text-xs mt-1 shrink-0"></i>{{ q }}
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
+        </div>
+      } @else if (!isLoading()) {
+        <div class="flex h-full items-center justify-center flex-col gap-3 text-gray-500">
+          <i class="fas fa-search text-3xl"></i>
+          <p class="text-sm">História não encontrada.</p>
+          <button (click)="goBack()" class="text-xs text-blue-400 hover:underline">Voltar ao backlog</button>
+        </div>
+      }
+    </main>
+
+    <!-- ===== RIGHT: CHAT ESPECIALISTA PO ===== -->
+    <aside class="w-80 shrink-0 border-l border-gray-700/60 flex flex-col bg-gray-900/40">
+
+      <!-- Chat header -->
+      <div class="shrink-0 px-4 py-3 border-b border-gray-700/40 flex items-center gap-2">
+        <div class="w-7 h-7 rounded-full bg-purple-700/60 border border-purple-600/50 flex items-center justify-center shrink-0">
+          <i class="fas fa-user-tie text-purple-300 text-xs"></i>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-white leading-none">Especialista PO</p>
+          <p class="text-xs text-gray-500 mt-0.5">Agile · Discovery · INVEST</p>
+        </div>
+        @if (isChatting()) {
+          <i class="fas fa-circle-notch fa-spin text-purple-400 text-xs ml-auto"></i>
+        }
+      </div>
+
+      <!-- Messages -->
+      <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+
+        @if (chatMessages().length === 0) {
+          <div class="flex flex-col items-center justify-center h-full text-center text-gray-600 gap-3 pb-6">
+            <i class="fas fa-comments text-3xl"></i>
+            <p class="text-xs leading-relaxed max-w-[200px]">
+              Pergunte sobre esta história — refinamento, critérios de aceite, riscos, estimativas ou discovery.
+            </p>
+          </div>
+        }
+
+        @for (msg of chatMessages(); track $index) {
+          @if (msg.role === 'user') {
+            <div class="flex justify-end">
+              <div class="max-w-[85%] bg-blue-600/30 border border-blue-500/30 rounded-xl rounded-br-sm px-3 py-2">
+                <p class="text-sm text-gray-100 whitespace-pre-wrap">{{ msg.content }}</p>
+              </div>
+            </div>
+          } @else {
+            <div class="flex justify-start">
+              <div class="max-w-[90%] bg-gray-800/60 border border-gray-700/40 rounded-xl rounded-bl-sm px-3 py-2">
+                <div class="text-sm text-gray-200 prose prose-sm max-w-none prose-invert"
+                  [innerHTML]="markdownToHtml(msg.content)"></div>
+              </div>
+            </div>
+          }
+        }
+
+        @if (isChatting()) {
+          <div class="flex justify-start">
+            <div class="bg-gray-800/60 border border-gray-700/40 rounded-xl rounded-bl-sm px-3 py-2">
+              <div class="flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style="animation-delay:0ms"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style="animation-delay:150ms"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style="animation-delay:300ms"></span>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (chatError()) {
+          <div class="text-xs text-red-400 text-center">{{ chatError() }}</div>
+        }
+
+        <div #chatEnd></div>
+      </div>
+
+      <!-- Input -->
+      <div class="shrink-0 px-4 py-3 border-t border-gray-700/40">
+        <div class="flex items-end gap-2">
+          <textarea
+            [ngModel]="chatInput()"
+            (ngModelChange)="chatInput.set($event)"
+            (keydown)="onChatKeydown($event)"
+            [disabled]="isChatting() || !currentStory()"
+            rows="2"
+            placeholder="Pergunte ao especialista... (Enter envia)"
+            class="flex-1 resize-none rounded-lg bg-gray-800 border border-gray-700 text-sm text-gray-100 placeholder-gray-600 px-3 py-2 focus:outline-none focus:border-purple-500 disabled:opacity-40 transition"
+          ></textarea>
+          <button (click)="sendChat()"
+            [disabled]="!chatInput().trim() || isChatting() || !currentStory()"
+            class="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition disabled:opacity-40 disabled:cursor-not-allowed">
+            <i class="fas fa-paper-plane text-xs"></i>
+          </button>
+        </div>
+        <p class="text-xs text-gray-700 mt-1.5">Enter para enviar · Shift+Enter para nova linha</p>
+      </div>
+
+    </aside>
+  </div>
+</div>

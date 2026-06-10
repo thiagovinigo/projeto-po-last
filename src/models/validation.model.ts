@@ -74,6 +74,7 @@ export interface RefinedStory {
   model?: string;
   sourceFile?: string;
   isLiteImport?: boolean;
+  refinedByAI?: boolean;
 }
 
 export interface StrategicRefinementResult {
